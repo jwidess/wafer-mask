@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Wafer Litho Demo</title>
+  <style>body{margin:0;overflow:hidden;}canvas{display:block;}</style>
+</head>
+<body>
+  <input type="file" id="imgInput" accept="image/*" style="position:absolute; z-index:1; padding:5px; background:#fff;"/>
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.126.1/build/three.module.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.126.1/examples/jsm/controls/OrbitControls.js';
+
+    // — SETUP SCENE, CAMERA, RENDERER —
+    const scene    = new THREE.Scene();
+    const camera   = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 100);
+    camera.position.set(0, 1.5, 3);
+
+    const renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(innerWidth, innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.AmbientLight(0x888888));
+    const dl = new THREE.DirectionalLight(0xffffff,0.8);
+    dl.position.set(5,10,7.5);
+    scene.add(dl);
+
+    // — CREATE A SIMPLE SILVER WAFER —
+    const geo = new THREE.CylinderGeometry(2,2,0.05,64);
+    geo.rotateX(Math.PI/2);
+    const mat = new THREE.MeshStandardMaterial({ color:0xC0C0C0, metalness:1, roughness:0.2 });
+    const wafer = new THREE.Mesh(geo, mat);
+    scene.add(wafer);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = innerWidth/innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    (function animate(){
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    })();
+  </script>
+</body>
+</html>

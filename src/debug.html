@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Wafer + Mask Debug</title>
+  <style>
+    body { margin:0; overflow:hidden; }
+    #imgInput, #maskDebug {
+      position: absolute;
+      left: 10px;
+      z-index: 1;
+      background: rgba(255,255,255,0.9);
+      padding: 6px;
+      border-radius: 4px;
+    }
+    #imgInput { top: 10px; }
+    #maskDebug { top: 60px; width:200px; height:200px; border:1px solid #666; }
+    canvas { display:block; }
+  </style>
+</head>
+<body>
+
+  <input type="file" id="imgInput" accept="image/*" />
+  <!-- this <canvas> will show your mask at 200×200 -->
+  <canvas id="maskDebug"></canvas>
+
+  <script type="module">
+    import * as THREE        from 'https://unpkg.com/three@0.126.1/build/three.module.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.126.1/examples/jsm/controls/OrbitControls.js';
+
+    // ——————————————————————————————————————————————————————
+    // 1) THREE.JS setup
+    // ——————————————————————————————————————————————————————
+    const scene    = new THREE.Scene();
+    scene.background = new THREE.Color(0x222222);
+
+    const camera   = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 100);
+    camera.position.set(0, 1.5, 3);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    window.addEventListener('resize', () => {
+      camera.aspect = innerWidth/innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    // ——————————————————————————————————————————————————————
+    // 2) Wafer mesh (just as before)
+    // ——————————————————————————————————————————————————————
+    const R = 2, T = 0.05, S = 64;
+    const geo = new THREE.CylinderGeometry(R, R, T, S);
+    geo.rotateX(Math.PI/2);
+
+    // off-screen canvas (512×512) for mask generation
+    const SIZE = 512;
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = maskCanvas.height = SIZE;
+    const mctx = maskCanvas.getContext('2d');
+
+    // material uses that canvas as a texture
+    const maskTex = new THREE.CanvasTexture(maskCanvas);
+    maskTex.wrapS = THREE.ClampToEdgeWrapping;
+    maskTex.wrapT = THREE.ClampToEdgeWrapping;
+    maskTex.minFilter = THREE.LinearFilter;
+    maskTex.magFilter = THREE.LinearFilter;
+
+    const mat = new THREE.MeshBasicMaterial({ map: maskTex, side: THREE.DoubleSide });
+    const wafer = new THREE.Mesh(geo, mat);
+    scene.add(wafer);
+
+    // helper so you can orient
+    scene.add(new THREE.AxesHelper(2));
+
+    // ——————————————————————————————————————————————————————
+    // 3) Setup the on-screen debug canvas
+    // ——————————————————————————————————————————————————————
+    const dbg = document.getElementById('maskDebug');
+    dbg.width  = SIZE;
+    dbg.height = SIZE;
+    const dctx = dbg.getContext('2d');
+
+    // ——————————————————————————————————————————————————————
+    // 4) File picker → drawImage → threshold → show & update
+    // ——————————————————————————————————————————————————————
+    document.getElementById('imgInput').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = () => {
+        // 1) white fill so transparent = silver
+        mctx.fillStyle = '#ffffff';
+        mctx.fillRect(0, 0, SIZE, SIZE);
+
+        // 2) draw & scale the PNG
+        mctx.drawImage(img, 0, 0, SIZE, SIZE);
+
+        // 3) threshold to purple/silver
+        const id = mctx.getImageData(0, 0, SIZE, SIZE);
+        for (let i = 0; i < id.data.length; i += 4) {
+          const lum = 0.299*id.data[i] + 0.587*id.data[i+1] + 0.114*id.data[i+2];
+          if (lum < 128) {
+            id.data[i]   = 0x66;
+            id.data[i+1] = 0x33;
+            id.data[i+2] = 0x99;
+          } else {
+            id.data[i] = id.data[i+1] = id.data[i+2] = 0xC0;
+          }
+          id.data[i+3] = 255;
+        }
+        mctx.putImageData(id, 0, 0);
+
+        // 4) debug preview
+        dctx.clearRect(0,0,SIZE,SIZE);
+        dctx.drawImage(maskCanvas, 0, 0);
+
+        // 5) update the 3D texture
+        maskTex.needsUpdate = true;
+      };
+      img.src = URL.createObjectURL(file);
+    });
+
+    // ——————————————————————————————————————————————————————
+    // 5) Render loop
+    // ——————————————————————————————————————————————————————
+    (function anim(){
+      requestAnimationFrame(anim);
+      controls.update();
+      renderer.render(scene, camera);
+    })();
+  </script>
+</body>
+</html>
