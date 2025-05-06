@@ -275,6 +275,72 @@
       img.src = URL.createObjectURL(file); // Load the selected image
     });
 
+    // Path to the default image
+    const defaultImagePath = '../images/jwst-crop.webp';
+
+    // Load the default image on startup
+    window.addEventListener('load', () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = parseFloat(document.getElementById('scaleSlider').value); // Get the scale value
+        const aspect = img.width / img.height;
+        const w = (aspect >= 1 ? SIZE : SIZE * aspect) * scale;
+        const h = (aspect < 1 ? SIZE : SIZE / aspect) * scale;
+        const x = (SIZE - w) / 2;
+        const y = (SIZE - h) / 2;
+
+        // Clear and prepare the mask canvas
+        mctx.clearRect(0, 0, SIZE, SIZE);
+        mctx.save();
+        mctx.translate(0, SIZE); // Flip vertically
+        mctx.scale(1, -1);
+        mctx.fillStyle = '#ffffff'; // Fill background with white
+        mctx.fillRect(0, 0, SIZE, SIZE);
+        mctx.drawImage(img, 0, 0, img.width, img.height, x, y, w, h);
+        mctx.restore();
+
+        // Threshold image: dark → white, light → black
+        const id = mctx.getImageData(0, 0, SIZE, SIZE);
+        const invert = document.getElementById('invertMask').checked; // Check if the mask should be inverted
+        for (let i = 0; i < id.data.length; i += 4) {
+          const lum = 0.299 * id.data[i] + 0.587 * id.data[i + 1] + 0.114 * id.data[i + 2];
+          if (invert ? lum >= 128 : lum < 128) {
+            id.data[i] = 255;
+            id.data[i + 1] = 255;
+            id.data[i + 2] = 255;
+          } else {
+            id.data[i] = 0;
+            id.data[i + 1] = 0;
+            id.data[i + 2] = 0;
+          }
+          id.data[i + 3] = 255; // Fully opaque
+        }
+        mctx.putImageData(id, 0, 0);
+
+        // === Update Preview Canvas ===
+        dctx.clearRect(0, 0, 128, 128);
+        dctx.save();
+
+        const previewAspect = img.width / img.height;
+        let pWidth = 128, pHeight = 128;
+        if (previewAspect >= 1) {
+          pHeight = 128 / previewAspect;
+        } else {
+          pWidth = 128 * previewAspect;
+        }
+        const pOffsetX = (128 - pWidth) / 2;
+        const pOffsetY = (128 - pHeight) / 2;
+
+        // Draw the scaled image onto the preview canvas
+        dctx.drawImage(img, 0, 0, img.width, img.height, pOffsetX, pOffsetY, pWidth, pHeight);
+        dctx.restore();
+
+        // Refresh Three.js texture
+        maskTex.needsUpdate = true;
+      };
+      img.src = defaultImagePath; // Load the default image
+    });
+
     // Add ambient light for general illumination
     const ambientLight = new THREE.AmbientLight(0xffffff, 1); // Soft white light
     scene.add(ambientLight);
