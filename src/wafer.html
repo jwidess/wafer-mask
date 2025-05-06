@@ -209,6 +209,15 @@
       }
     });
 
+    // Add event listener to the "Reset Scale" button
+    document.getElementById('resetScale').addEventListener('click', () => {
+      const scaleSlider = document.getElementById('scaleSlider');
+      scaleSlider.value = 1; // Reset the slider to its default value
+      if (currentImage) {
+        processImage(currentImage); // Reprocess the current image with the default scale
+      }
+    });
+
     const defaultImagePath = '../images/jwst-crop.webp';
     let currentImage = null; // Store the currently loaded image
 
