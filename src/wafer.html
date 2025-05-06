@@ -6,8 +6,16 @@
   <title>Wafer Art Mask Viewer</title>
   <style>
     /* Page and canvas styles */
-    body { margin: 0; overflow: hidden; background: #111; }
-    canvas { display: block; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #111;
+    }
+
+    canvas {
+      display: block;
+    }
+
     /* File input positioned at top-left */
     #imgInput {
       position: absolute;
@@ -18,6 +26,7 @@
       background: rgba(255, 255, 255, 0.8);
       border-radius: 4px;
     }
+
     /* Preview canvas styling */
     #preview {
       position: absolute;
@@ -28,7 +37,7 @@
       border: 2px solid #888;
       background: white;
       image-rendering: pixelated;
-      box-shadow: 0 0 4px rgba(0,0,0,0.5);
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
     }
   </style>
 </head>
@@ -43,6 +52,12 @@
   <label style="position: absolute; top: 200px; left: 10px; color: white; z-index: 1;">
     <input type="checkbox" id="invertMask" /> Invert Mask
   </label>
+  <!-- Add a slider for adjusting mask scaling -->
+  <label style="position: absolute; top: 240px; left: 10px; color: white; z-index: 1;">
+    Scale: <input type="range" id="scaleSlider" min="0.1" max="2" step="0.1" value="1" />
+  </label>
+  <!-- Add a button to reset the scale -->
+  <button id="resetScale" style="position: absolute; top: 280px; left: 10px; z-index: 1;">Reset Scale</button>
 
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.126.1/build/three.module.js';
@@ -96,18 +111,18 @@
     // Silver metallic texture (example CDN or local)
     const silverTex = loader.load('https://static.vecteezy.com/system/resources/previews/015/155/617/non_2x/silver-foil-background-metal-textured-shiny-gradient-stainless-glossy-surface-with-reflection-realistic-chrome-backdrop-illustration-vector.jpg');
     silverTex.wrapS = silverTex.wrapT = THREE.RepeatWrapping;
-    silverTex.repeat.set(1,1);
+    silverTex.repeat.set(1, 1);
     // Purple metallic texture (placeholder)
     const purpleTex = loader.load('https://static.vecteezy.com/system/resources/previews/020/040/371/non_2x/abstract-colorful-pink-green-yellow-blue-holographic-mesh-wavy-texture-background-eps10-vector.jpg');
     purpleTex.wrapS = purpleTex.wrapT = THREE.RepeatWrapping;
-    purpleTex.repeat.set(1,1);
+    purpleTex.repeat.set(1, 1);
 
     // === ShaderMaterial for Masked Top ===
     const topMat = new THREE.ShaderMaterial({
       uniforms: {
-        maskMap:    { value: maskTex },
-        silverMap:  { value: silverTex },
-        purpleMap:  { value: purpleTex }
+        maskMap: { value: maskTex },
+        silverMap: { value: silverTex },
+        purpleMap: { value: purpleTex }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -174,15 +189,36 @@
       }
     });
 
+    // Add event listener to the scale slider
+    document.getElementById('scaleSlider').addEventListener('input', () => {
+      const imgInput = document.getElementById('imgInput');
+      if (imgInput.files.length > 0) {
+        const event = new Event('change');
+        imgInput.dispatchEvent(event);
+      }
+    });
+
+    // Add event listener to the "Reset Scale" button
+    document.getElementById('resetScale').addEventListener('click', () => {
+      const scaleSlider = document.getElementById('scaleSlider');
+      scaleSlider.value = 1; // Reset the slider to its default value
+      const imgInput = document.getElementById('imgInput');
+      if (imgInput.files.length > 0) {
+        const event = new Event('change');
+        imgInput.dispatchEvent(event); // Reprocess the mask with the default scale
+      }
+    });
+
     // === Image Input & Mask Processing ===
     document.getElementById('imgInput').addEventListener('change', e => {
       const file = e.target.files[0];
       if (!file) return;
       const img = new Image();
       img.onload = () => {
+        const scale = parseFloat(document.getElementById('scaleSlider').value); // Get the scale value
         const aspect = img.width / img.height;
-        const w = aspect >= 1 ? SIZE : SIZE * aspect;
-        const h = aspect < 1 ? SIZE : SIZE / aspect;
+        const w = (aspect >= 1 ? SIZE : SIZE * aspect) * scale;
+        const h = (aspect < 1 ? SIZE : SIZE / aspect) * scale;
         const x = (SIZE - w) / 2;
         const y = (SIZE - h) / 2;
 
@@ -257,9 +293,10 @@
     function animate() {
       requestAnimationFrame(animate);
       controls.update();
-      renderer.render(scene,camera);
+      renderer.render(scene, camera);
     }
     animate();
   </script>
 </body>
+
 </html>
