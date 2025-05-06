@@ -3,18 +3,11 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>Wafer Lithography Viewer</title>
+  <title>Wafer Lithography Viewer with Textured Materials</title>
   <style>
     /* Page and canvas styles */
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #111;
-    }
-
-    canvas {
-      display: block;
-    }
+    body { margin: 0; overflow: hidden; background: #111; }
+    canvas { display: block; }
     /* File input positioned at top-left */
     #imgInput {
       position: absolute;
@@ -35,7 +28,7 @@
       border: 2px solid #888;
       background: white;
       image-rendering: pixelated;
-      box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 0 4px rgba(0,0,0,0.5);
     }
   </style>
 </head>
@@ -44,7 +37,7 @@
 
   <!-- File input for uploading an image -->
   <input type="file" id="imgInput" accept="image/*" />
-  <!-- Canvas for displaying a preview of the uploaded image -->
+  <!-- Canvas for displaying a preview of the processed mask -->
   <canvas id="preview" width="128" height="128"></canvas>
 
   <script type="module">
@@ -53,27 +46,21 @@
 
     // === Scene Setup ===
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x222222); // Set background color
+    scene.background = new THREE.Color(0x222222);
 
     // === Camera Setup ===
-    const camera = new THREE.PerspectiveCamera(
-      45,                        // Field of view
-      innerWidth / innerHeight,  // Aspect ratio
-      0.1,                       // Near clipping plane
-      100                        // Far clipping plane
-    );
-    camera.position.set(0, 1.5, 3); // Position the camera to view the wafer
+    const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
+    camera.position.set(0, 1.5, 3);
 
     // === Renderer Setup ===
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(innerWidth, innerHeight); // Match renderer size to window
-    document.body.appendChild(renderer.domElement); // Add renderer to the DOM
+    renderer.setSize(innerWidth, innerHeight);
+    document.body.appendChild(renderer.domElement);
 
     // === Controls Setup ===
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true; // Smooth camera movement
+    controls.enableDamping = true;
 
-    // Adjust camera and renderer on window resize
     window.addEventListener('resize', () => {
       camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
@@ -81,58 +68,87 @@
     });
 
     // === Wafer Geometry ===
-    const RADIUS = 2;      // Wafer radius
-    const THICK = 0.05;    // Wafer thickness
-
-    // Create top and bottom faces as circles
+    const RADIUS = 2;
+    const THICK = 0.05;
     const topGeo = new THREE.CircleGeometry(RADIUS, 256);
     const bottomGeo = new THREE.CircleGeometry(RADIUS, 256);
-    // Create side surface as a thin cylinder
     const sideGeo = new THREE.CylinderGeometry(RADIUS, RADIUS, THICK, 256, 1, true);
 
-    // === Off-screen Canvas for Mask ===
-    const SIZE = 2048;  // Resolution of mask texture
+    // === Off-Screen Canvas for Mask ===
+    const SIZE = 2048;
     const maskCanvas = document.createElement('canvas');
     maskCanvas.width = maskCanvas.height = SIZE;
-    const mctx = maskCanvas.getContext('2d'); // Context for drawing the mask
+    const mctx = maskCanvas.getContext('2d');
 
-    // Create Three.js texture from the off-screen canvas
     const maskTex = new THREE.CanvasTexture(maskCanvas);
-    maskTex.flipY = false; // Prevent vertical flipping
-    maskTex.wrapS = THREE.ClampToEdgeWrapping;
-    maskTex.wrapT = THREE.ClampToEdgeWrapping;
+    maskTex.flipY = false;
+    maskTex.wrapS = maskTex.wrapT = THREE.ClampToEdgeWrapping;
     maskTex.minFilter = THREE.LinearMipmapLinearFilter;
     maskTex.magFilter = THREE.LinearFilter;
-    maskTex.generateMipmaps = true;
     maskTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
-    // === Materials ===
-    // Top face uses the mask texture, only front side visible
-    const topMat = new THREE.MeshBasicMaterial({ map: maskTex, side: THREE.FrontSide });
-    // Side and bottom use simple gray color
-    const sideMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
-    const bottomMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
+    // === TextureLoader ===
+    const loader = new THREE.TextureLoader();
+    // Silver metallic texture (example CDN or local)
+    const silverTex = loader.load('https://static.vecteezy.com/system/resources/previews/015/155/617/non_2x/silver-foil-background-metal-textured-shiny-gradient-stainless-glossy-surface-with-reflection-realistic-chrome-backdrop-illustration-vector.jpg');
+    silverTex.wrapS = silverTex.wrapT = THREE.RepeatWrapping;
+    silverTex.repeat.set(1,1);
+    // Purple metallic texture (placeholder)
+    const purpleTex = loader.load('https://static.vecteezy.com/system/resources/previews/020/040/371/non_2x/abstract-colorful-pink-green-yellow-blue-holographic-mesh-wavy-texture-background-eps10-vector.jpg');
+    purpleTex.wrapS = purpleTex.wrapT = THREE.RepeatWrapping;
+    purpleTex.repeat.set(1,1);
+
+    // === ShaderMaterial for Masked Top ===
+    const topMat = new THREE.ShaderMaterial({
+      uniforms: {
+        maskMap:    { value: maskTex },
+        silverMap:  { value: silverTex },
+        purpleMap:  { value: purpleTex }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D maskMap;
+        uniform sampler2D silverMap;
+        uniform sampler2D purpleMap;
+        varying vec2 vUv;
+        void main() {
+          float m = texture2D(maskMap, vUv).r;
+          vec3 silver = texture2D(silverMap, vUv).rgb;
+          vec3 purple = texture2D(purpleMap, vUv).rgb;
+          vec3 color = mix(silver, purple, m);
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `
+    });
+
+    // Side and bottom materials remain simple
+    const sideMat = new THREE.MeshStandardMaterial({ map: silverTex, metalness: 1.0, roughness: 0.4 });
+    const bottomMat = new THREE.MeshStandardMaterial({ map: silverTex, metalness: 1.0, roughness: 0.4 });
 
     // === Meshes ===
     const top = new THREE.Mesh(topGeo, topMat);
-    top.rotation.x = -Math.PI / 2;  // Rotate to horizontal
-    top.position.y = THICK / 2;     // Raise to top of wafer
+    top.rotation.x = -Math.PI/2;
+    top.position.y = THICK/2;
 
     const bottom = new THREE.Mesh(bottomGeo, bottomMat);
-    bottom.rotation.x = Math.PI / 2;
-    bottom.position.y = -THICK / 2;     // Lower to bottom
+    bottom.rotation.x = Math.PI/2;
+    bottom.position.y = -THICK/2;
 
     const side = new THREE.Mesh(sideGeo, sideMat);
 
-    // Group all parts into one wafer object
     const wafer = new THREE.Group();
     wafer.add(top, bottom, side);
     scene.add(wafer);
 
-    // Add axes helper for orientation (X=red, Y=green, Z=blue)
     scene.add(new THREE.AxesHelper(2));
 
-    // === Preview Canvas Context ===
+    // === Preview Canvas ===
     const dctx = document.getElementById('preview').getContext('2d');
 
     // === Image Input & Mask Processing ===
@@ -141,74 +157,43 @@
       if (!file) return;
       const img = new Image();
       img.onload = () => {
-        // Compute aspect-fit dimensions for drawing
         const aspect = img.width / img.height;
-        const drawWidth = aspect >= 1 ? SIZE : SIZE * aspect;
-        const drawHeight = aspect < 1 ? SIZE : SIZE / aspect;
-        const offsetX = (SIZE - drawWidth) / 2;
-        const offsetY = (SIZE - drawHeight) / 2;
-
-        // Clear and prepare the mask canvas
-        mctx.clearRect(0, 0, SIZE, SIZE);
+        const w = aspect >= 1 ? SIZE : SIZE * aspect;
+        const h = aspect < 1 ? SIZE : SIZE / aspect;
+        const x = (SIZE - w)/2;
+        const y = (SIZE - h)/2;
+        mctx.clearRect(0,0,SIZE,SIZE);
         mctx.save();
-        mctx.translate(0, SIZE); // Flip vertically
-        mctx.scale(1, -1);
-        mctx.fillStyle = '#ffffff'; // Fill background with white
-        mctx.fillRect(0, 0, SIZE, SIZE);
-        mctx.drawImage(img, 0, 0, img.width, img.height, offsetX, offsetY, drawWidth, drawHeight);
+        mctx.translate(0, SIZE); mctx.scale(1,-1);
+        mctx.fillStyle = '#ffffff'; mctx.fillRect(0,0,SIZE,SIZE);
+        mctx.drawImage(img, 0,0,img.width, img.height, x,y,w,h);
         mctx.restore();
-
-        // Threshold image: dark → purple, light → silver
-        const id = mctx.getImageData(0, 0, SIZE, SIZE);
-        for (let i = 0; i < id.data.length; i += 4) {
-          const lum = 0.299 * id.data[i] + 0.587 * id.data[i + 1] + 0.114 * id.data[i + 2]; // Calculate luminance
-          if (lum < 128) {
-            // Dark pixels → purple
-            id.data[i] = 0x66;
-            id.data[i + 1] = 0x33;
-            id.data[i + 2] = 0x99;
+        const id = mctx.getImageData(0,0,SIZE,SIZE);
+        for (let i=0;i<id.data.length;i+=4) {
+          const lum = 0.299*id.data[i]+0.587*id.data[i+1]+0.114*id.data[i+2];
+          if (lum<128) {
+            id.data[i]=255; id.data[i+1]=255; id.data[i+2]=255;
           } else {
-            // Light pixels → silver
-            id.data[i] = id.data[i + 1] = id.data[i + 2] = 0xC0;
+            id.data[i]=0; id.data[i+1]=0; id.data[i+2]=0;
           }
-          id.data[i + 3] = 255; // Fully opaque
+          id.data[i+3]=255;
         }
-        mctx.putImageData(id, 0, 0);
-
-        // === Update Preview Canvas ===
-        // Fix the preview scaling and orientation
-        dctx.clearRect(0, 0, 128, 128);
-        dctx.save();
-
-        const previewAspect = img.width / img.height;
-        let pWidth = 128, pHeight = 128;
-        if (previewAspect >= 1) {
-          pHeight = 128 / previewAspect;
-        } else {
-          pWidth = 128 * previewAspect;
-        }
-        const pOffsetX = (128 - pWidth) / 2;
-        const pOffsetY = (128 - pHeight) / 2;
-
-        // Draw the scaled image onto the preview canvas
-        dctx.drawImage(img, 0, 0, img.width, img.height, pOffsetX, pOffsetY, pWidth, pHeight);
-        dctx.restore();
-
-        // Refresh Three.js texture
-        maskTex.needsUpdate = true;
-        maskTex.generateMipmaps = true;
+        mctx.putImageData(id,0,0);
+        // Preview
+        dctx.clearRect(0,0,128,128);
+        dctx.drawImage(maskCanvas,0,0,SIZE,SIZE,0,0,128,128);
+        maskTex.needsUpdate=true;
       };
-      img.src = URL.createObjectURL(file); // Load the selected image
+      img.src = URL.createObjectURL(file);
     });
 
     // === Animation Loop ===
     function animate() {
-      requestAnimationFrame(animate); // Continuously request animation frames
-      controls.update(); // Update camera controls
-      renderer.render(scene, camera); // Render the scene
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene,camera);
     }
-    animate(); // Start the animation loop
+    animate();
   </script>
 </body>
-
 </html>
