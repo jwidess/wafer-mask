@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <title>Wafer Lithography Viewer</title>
   <style>
+    /* Page and canvas styles */
     body {
       margin: 0;
       overflow: hidden;
@@ -14,7 +15,7 @@
     canvas {
       display: block;
     }
-
+    /* File input positioned at top-left */
     #imgInput {
       position: absolute;
       top: 10px;
@@ -24,7 +25,7 @@
       background: rgba(255, 255, 255, 0.8);
       border-radius: 4px;
     }
-
+    /* Preview canvas styling */
     #preview {
       position: absolute;
       top: 60px;
@@ -41,45 +42,63 @@
 
 <body>
 
+  <!-- File input for uploading an image -->
   <input type="file" id="imgInput" accept="image/*" />
+  <!-- Canvas for displaying a preview of the uploaded image -->
   <canvas id="preview" width="128" height="128"></canvas>
 
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.126.1/build/three.module.js';
     import { OrbitControls } from 'https://unpkg.com/three@0.126.1/examples/jsm/controls/OrbitControls.js';
 
+    // === Scene Setup ===
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x222222);
+    scene.background = new THREE.Color(0x222222); // Set background color
 
-    const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
-    camera.position.set(0, 1.5, 3);
+    // === Camera Setup ===
+    const camera = new THREE.PerspectiveCamera(
+      45,                        // Field of view
+      innerWidth / innerHeight,  // Aspect ratio
+      0.1,                       // Near clipping plane
+      100                        // Far clipping plane
+    );
+    camera.position.set(0, 1.5, 3); // Position the camera to view the wafer
 
+    // === Renderer Setup ===
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(innerWidth, innerHeight);
-    document.body.appendChild(renderer.domElement);
+    renderer.setSize(innerWidth, innerHeight); // Match renderer size to window
+    document.body.appendChild(renderer.domElement); // Add renderer to the DOM
 
+    // === Controls Setup ===
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
+    controls.enableDamping = true; // Smooth camera movement
 
+    // Adjust camera and renderer on window resize
     window.addEventListener('resize', () => {
       camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(innerWidth, innerHeight);
     });
 
-    const RADIUS = 2;
-    const THICK = 0.05;
+    // === Wafer Geometry ===
+    const RADIUS = 2;      // Wafer radius
+    const THICK = 0.05;    // Wafer thickness
+
+    // Create top and bottom faces as circles
     const topGeo = new THREE.CircleGeometry(RADIUS, 256);
     const bottomGeo = new THREE.CircleGeometry(RADIUS, 256);
+    // Create side surface as a thin cylinder
     const sideGeo = new THREE.CylinderGeometry(RADIUS, RADIUS, THICK, 256, 1, true);
 
-    const SIZE = 2048;
+    // === Off-screen Canvas for Mask ===
+    const SIZE = 2048;  // Resolution of mask texture
     const maskCanvas = document.createElement('canvas');
     maskCanvas.width = maskCanvas.height = SIZE;
-    const mctx = maskCanvas.getContext('2d');
+    const mctx = maskCanvas.getContext('2d'); // Context for drawing the mask
 
+    // Create Three.js texture from the off-screen canvas
     const maskTex = new THREE.CanvasTexture(maskCanvas);
-    maskTex.flipY = false;
+    maskTex.flipY = false; // Prevent vertical flipping
     maskTex.wrapS = THREE.ClampToEdgeWrapping;
     maskTex.wrapT = THREE.ClampToEdgeWrapping;
     maskTex.minFilter = THREE.LinearMipmapLinearFilter;
@@ -87,64 +106,76 @@
     maskTex.generateMipmaps = true;
     maskTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
+    // === Materials ===
+    // Top face uses the mask texture, only front side visible
     const topMat = new THREE.MeshBasicMaterial({ map: maskTex, side: THREE.FrontSide });
+    // Side and bottom use simple gray color
     const sideMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
     const bottomMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
 
+    // === Meshes ===
     const top = new THREE.Mesh(topGeo, topMat);
-    top.rotation.x = -Math.PI / 2;
-    top.position.y = THICK / 2;
+    top.rotation.x = -Math.PI / 2;  // Rotate to horizontal
+    top.position.y = THICK / 2;     // Raise to top of wafer
 
     const bottom = new THREE.Mesh(bottomGeo, bottomMat);
     bottom.rotation.x = Math.PI / 2;
-    bottom.position.y = -THICK / 2;
+    bottom.position.y = -THICK / 2;     // Lower to bottom
 
     const side = new THREE.Mesh(sideGeo, sideMat);
 
+    // Group all parts into one wafer object
     const wafer = new THREE.Group();
-    wafer.add(top);
-    wafer.add(bottom);
-    wafer.add(side);
+    wafer.add(top, bottom, side);
     scene.add(wafer);
 
+    // Add axes helper for orientation (X=red, Y=green, Z=blue)
     scene.add(new THREE.AxesHelper(2));
 
+    // === Preview Canvas Context ===
     const dctx = document.getElementById('preview').getContext('2d');
 
+    // === Image Input & Mask Processing ===
     document.getElementById('imgInput').addEventListener('change', e => {
       const file = e.target.files[0];
       if (!file) return;
       const img = new Image();
       img.onload = () => {
+        // Compute aspect-fit dimensions for drawing
         const aspect = img.width / img.height;
         const drawWidth = aspect >= 1 ? SIZE : SIZE * aspect;
         const drawHeight = aspect < 1 ? SIZE : SIZE / aspect;
         const offsetX = (SIZE - drawWidth) / 2;
         const offsetY = (SIZE - drawHeight) / 2;
 
+        // Clear and prepare the mask canvas
         mctx.clearRect(0, 0, SIZE, SIZE);
         mctx.save();
-        mctx.translate(0, SIZE);
+        mctx.translate(0, SIZE); // Flip vertically
         mctx.scale(1, -1);
-        mctx.fillStyle = '#ffffff';
+        mctx.fillStyle = '#ffffff'; // Fill background with white
         mctx.fillRect(0, 0, SIZE, SIZE);
         mctx.drawImage(img, 0, 0, img.width, img.height, offsetX, offsetY, drawWidth, drawHeight);
         mctx.restore();
 
+        // Threshold image: dark → purple, light → silver
         const id = mctx.getImageData(0, 0, SIZE, SIZE);
         for (let i = 0; i < id.data.length; i += 4) {
-          const lum = 0.299 * id.data[i] + 0.587 * id.data[i + 1] + 0.114 * id.data[i + 2];
+          const lum = 0.299 * id.data[i] + 0.587 * id.data[i + 1] + 0.114 * id.data[i + 2]; // Calculate luminance
           if (lum < 128) {
+            // Dark pixels → purple
             id.data[i] = 0x66;
             id.data[i + 1] = 0x33;
             id.data[i + 2] = 0x99;
           } else {
+            // Light pixels → silver
             id.data[i] = id.data[i + 1] = id.data[i + 2] = 0xC0;
           }
-          id.data[i + 3] = 255;
+          id.data[i + 3] = 255; // Fully opaque
         }
         mctx.putImageData(id, 0, 0);
 
+        // === Update Preview Canvas ===
         // Fix the preview scaling and orientation
         dctx.clearRect(0, 0, 128, 128);
         dctx.save();
@@ -159,21 +190,24 @@
         const pOffsetX = (128 - pWidth) / 2;
         const pOffsetY = (128 - pHeight) / 2;
 
+        // Draw the scaled image onto the preview canvas
         dctx.drawImage(img, 0, 0, img.width, img.height, pOffsetX, pOffsetY, pWidth, pHeight);
         dctx.restore();
 
+        // Refresh Three.js texture
         maskTex.needsUpdate = true;
         maskTex.generateMipmaps = true;
       };
-      img.src = URL.createObjectURL(file);
+      img.src = URL.createObjectURL(file); // Load the selected image
     });
 
+    // === Animation Loop ===
     function animate() {
-      requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
+      requestAnimationFrame(animate); // Continuously request animation frames
+      controls.update(); // Update camera controls
+      renderer.render(scene, camera); // Render the scene
     }
-    animate();
+    animate(); // Start the animation loop
   </script>
 </body>
 
