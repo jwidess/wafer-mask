@@ -103,6 +103,20 @@
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
+    let lastInteraction = Date.now();
+    let isAutoRotating = true;
+    const AUTO_ROTATION_DELAY = 3000; // 3 seconds
+
+    // Add these event listeners after the controls setup
+    controls.addEventListener('start', () => {
+      isAutoRotating = false;
+      lastInteraction = Date.now();
+    });
+
+    controls.addEventListener('end', () => {
+      lastInteraction = Date.now();
+    });
+
     window.addEventListener('resize', () => {
       camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
@@ -417,6 +431,17 @@
     // In your animation loop
     function animate() {
       requestAnimationFrame(animate);
+
+      // Check if we should start auto-rotation
+      if (!isAutoRotating && Date.now() - lastInteraction > AUTO_ROTATION_DELAY) {
+        isAutoRotating = true;
+      }
+
+      // Apply auto-rotation if active
+      if (isAutoRotating) {
+        wafer.rotation.y += 0.002; // Adjust speed as needed
+      }
+
       topMat.uniforms.customCameraPosition.value.copy(camera.position);
       // Optionally adjust effect scale if needed
       topMat.uniforms.effectScale.value = 0.7;  // Adjust this value as needed
