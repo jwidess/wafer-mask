@@ -39,10 +39,33 @@
       image-rendering: pixelated;
       box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
     }
+
+    /* Add these styles to the existing style block */
+    .home-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1;
+      padding: 8px 16px;
+      background-color: rgba(255, 255, 255, 0.7);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.1s;
+      text-decoration: none;
+      color: #333;
+    }
+
+    .home-button:hover {
+      background-color: rgb(255, 255, 255);
+    }
   </style>
 </head>
 
 <body>
+  <!-- Add this line right after the body tag -->
+  <a href="https://github.com/jwidess/wafer-mask" class="home-button">Home</a>
 
   <!-- File input for uploading an image -->
   <input type="file" id="imgInput" accept="image/*" />
@@ -286,7 +309,7 @@
       }
     });
 
-    const defaultImagePath = '../images/jwst-crop.webp';
+    const defaultImagePath = '../images/seamless-cross-hatch-pattern.jpg';
     let currentImage = null; // Store the currently loaded image
 
     function processImage(img) {
