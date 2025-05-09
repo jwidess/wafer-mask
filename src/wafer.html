@@ -163,10 +163,12 @@
           vec3 viewDir = normalize(customCameraPosition - vWorldPosition);
           float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), 1.2); // Reduced power for stronger effect
           
-          // Calculate rotation angle based on view direction
-          float rotationAngle = atan(viewDir.y, viewDir.x);
+          // Enhanced rotation calculation
+          float rotationAngle = atan(viewDir.y, viewDir.x) * 2.0; // Doubled rotation speed
+          float additionalRotation = acos(dot(viewDir, vNormal)) * 0.5; // Add rotation based on view angle
+          rotationAngle += additionalRotation; // Combine rotations
           
-          // Create rotation matrix
+          // Create rotation matrix with enhanced rotation
           float c = cos(rotationAngle);
           float s = sin(rotationAngle);
           mat2 rotationMatrix = mat2(
@@ -178,7 +180,7 @@
           vec2 holoUV = vUv - 0.5;
           holoUV *= effectScale;
           
-          // Apply rotation
+          // Apply enhanced rotation
           holoUV = rotationMatrix * holoUV;
           holoUV += 0.5;
           
