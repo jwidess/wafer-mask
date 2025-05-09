@@ -447,7 +447,7 @@
     });
 
     // === Animation Loop ===
-    // In your animation loop
+    // Modify the animation loop to rotate camera instead of wafer
     function animate() {
       requestAnimationFrame(animate);
 
@@ -458,12 +458,21 @@
 
       // Apply auto-rotation if active
       if (isAutoRotating) {
-        wafer.rotation.y += 0.002; // Adjust speed as needed
+        // Calculate orbit position
+        const radius = Math.sqrt(camera.position.x * camera.position.x + camera.position.z * camera.position.z);
+        const angle = Math.atan2(camera.position.x, camera.position.z) + 0.002;
+        
+        // Update camera position
+        camera.position.x = radius * Math.sin(angle);
+        camera.position.z = radius * Math.cos(angle);
+        
+        // Make camera look at center
+        camera.lookAt(0, 0, 0);
       }
 
       topMat.uniforms.customCameraPosition.value.copy(camera.position);
       // Optionally adjust effect scale if needed
-      topMat.uniforms.effectScale.value = 0.7;  // Adjust this value as needed
+      topMat.uniforms.effectScale.value = 0.7;  // This needs to be tuned
       controls.update();
       renderer.render(scene, camera);
     }
