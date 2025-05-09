@@ -93,6 +93,15 @@
     const bottomGeo = new THREE.CircleGeometry(RADIUS, 256);
     const sideGeo = new THREE.CylinderGeometry(RADIUS, RADIUS, THICK, 256, 1, true);
 
+    // --- Correct UV Remapping for Circle ---
+    const uv = topGeo.attributes.uv;
+    for (let i = 0; i < uv.count; i++) {
+      const x = topGeo.attributes.position.getX(i) / RADIUS;
+      const y = topGeo.attributes.position.getY(i) / RADIUS;
+      uv.setXY(i, x * 0.5 + 0.5, y * 0.5 + 0.5);
+    }
+    uv.needsUpdate = true;
+
     // === Off-Screen Canvas for Mask ===
     const SIZE = 2048;
     const maskCanvas = document.createElement('canvas');
@@ -108,40 +117,102 @@
 
     // === TextureLoader ===
     const loader = new THREE.TextureLoader();
-    // Silver metallic texture (example CDN or local)
-    const silverTex = loader.load('https://static.vecteezy.com/system/resources/previews/015/155/617/non_2x/silver-foil-background-metal-textured-shiny-gradient-stainless-glossy-surface-with-reflection-realistic-chrome-backdrop-illustration-vector.jpg');
+    const silverTex = loader.load('./textures/silver-texture-square.jpg');
     silverTex.wrapS = silverTex.wrapT = THREE.RepeatWrapping;
     silverTex.repeat.set(1, 1);
-    // Purple metallic texture (placeholder)
-    const purpleTex = loader.load('https://static.vecteezy.com/system/resources/previews/020/040/371/non_2x/abstract-colorful-pink-green-yellow-blue-holographic-mesh-wavy-texture-background-eps10-vector.jpg');
+    // Update the purple texture settings
+    const purpleTex = loader.load('./textures/holo-texture-square.jpg');
     purpleTex.wrapS = purpleTex.wrapT = THREE.RepeatWrapping;
-    purpleTex.repeat.set(1, 1);
+    purpleTex.repeat.set(2, 2); // Increase the repeat to match the shader's UV scaling
 
-    // === ShaderMaterial for Masked Top ===
+    // Replace the entire ShaderMaterial definition
     const topMat = new THREE.ShaderMaterial({
       uniforms: {
         maskMap: { value: maskTex },
         silverMap: { value: silverTex },
-        purpleMap: { value: purpleTex }
+        purpleMap: { value: purpleTex },
+        customCameraPosition: { value: new THREE.Vector3() },
+        effectScale: { value: 1.5 }  // Add scale uniform to control effect coverage
       },
       vertexShader: `
         varying vec2 vUv;
+        varying vec3 vWorldPosition;
+        varying vec3 vNormal;
+        
         void main() {
           vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPosition.xyz;
+          vNormal = normalize(mat3(modelMatrix) * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
         uniform sampler2D maskMap;
         uniform sampler2D silverMap;
         uniform sampler2D purpleMap;
+        uniform vec3 customCameraPosition;
+        uniform float effectScale;
+        
         varying vec2 vUv;
+        varying vec3 vWorldPosition;
+        varying vec3 vNormal;
+        
         void main() {
-          float m = texture2D(maskMap, vUv).r;
-          vec3 silver = texture2D(silverMap, vUv).rgb;
-          vec3 purple = texture2D(purpleMap, vUv).rgb;
-          vec3 color = mix(silver, purple, m);
-          gl_FragColor = vec4(color, 1.0);
+          // Calculate view direction and fresnel effect
+          vec3 viewDir = normalize(customCameraPosition - vWorldPosition);
+          float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), 1.2); // Reduced power for stronger effect
+          
+          // Enhanced rotation calculation
+          float rotationAngle = atan(viewDir.y, viewDir.x) * 2.0; // Doubled rotation speed
+          float additionalRotation = acos(dot(viewDir, vNormal)) * 0.5; // Add rotation based on view angle
+          rotationAngle += additionalRotation; // Combine rotations
+          
+          // Create rotation matrix with enhanced rotation
+          float c = cos(rotationAngle);
+          float s = sin(rotationAngle);
+          mat2 rotationMatrix = mat2(
+            c, -s,
+            s, c
+          );
+          
+          // Create scaled UV coordinates for the holographic effect
+          vec2 holoUV = vUv - 0.5;
+          holoUV *= effectScale;
+          
+          // Apply enhanced rotation
+          holoUV = rotationMatrix * holoUV;
+          holoUV += 0.5;
+          
+          // Add enhanced view-dependent shift
+          vec2 viewOffset = viewDir.xy * 0.07; // Increased from 0.12
+          holoUV += viewOffset;
+          
+          // Add scaled fresnel-based radial shift
+          float radialShift = fresnel * 0.15 * effectScale; // Increased from 0.1
+          vec2 toCenter = normalize(holoUV - vec2(0.5));
+          holoUV += toCenter * radialShift;
+          
+          // Ensure UVs stay within bounds
+          holoUV = fract(holoUV);
+          
+          // Sample textures
+          float mask = texture2D(maskMap, vUv).r;
+          vec3 silverColor = texture2D(silverMap, vUv).rgb;
+          vec3 purpleColor = texture2D(purpleMap, holoUV).rgb;
+          
+          // Enhance holographic color intensity
+          purpleColor = pow(purpleColor, vec3(1.5)); // Gamma adjustment for more vibrant colors
+          purpleColor *= 1.2; // Boost overall intensity
+          
+          // Enhanced viewing angle effect
+          float viewEffect = 1.2 - 0.5 * abs(dot(viewDir, vNormal)); // More dramatic angle response
+          purpleColor *= (1.0 + fresnel * 1.2) * viewEffect; // Increased fresnel influence
+          
+          // Mix colors using enhanced mask
+          vec3 finalColor = mix(silverColor, purpleColor, mask * (0.95 + 0.15 * fresnel));
+          
+          gl_FragColor = vec4(finalColor, 1.0);
         }
       `
     });
@@ -320,8 +391,12 @@
     scene.add(pointLight);
 
     // === Animation Loop ===
+    // In your animation loop
     function animate() {
       requestAnimationFrame(animate);
+      topMat.uniforms.customCameraPosition.value.copy(camera.position);
+      // Optionally adjust effect scale if needed
+      topMat.uniforms.effectScale.value = 0.7;  // Adjust this value as needed
       controls.update();
       renderer.render(scene, camera);
     }
