@@ -104,6 +104,10 @@
     // === Controls Setup ===
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
+    //controls.enablePan = false;  // Disable panning
+    controls.target.set(0, 0, 0); // Lock target to center
+    controls.target0.set(0, 0, 0); // Lock reset position to center
+    controls.update();
 
     let lastInteraction = Date.now();
     let isAutoRotating = true;
@@ -446,6 +450,9 @@
       }
     });
 
+    // Add this constant near the top with other constants
+    const CENTER = new THREE.Vector3(0, 0, 0);
+
     // === Animation Loop ===
     // Modify the animation loop to rotate camera instead of wafer
     function animate() {
@@ -458,6 +465,9 @@
 
       // Apply auto-rotation if active
       if (isAutoRotating) {
+        // Smoothly move target back to center
+        controls.target.lerp(CENTER, 0.01);
+        
         // Calculate orbit position
         const radius = Math.sqrt(camera.position.x * camera.position.x + camera.position.z * camera.position.z);
         const angle = Math.atan2(camera.position.x, camera.position.z) + 0.002;
@@ -466,13 +476,12 @@
         camera.position.x = radius * Math.sin(angle);
         camera.position.z = radius * Math.cos(angle);
         
-        // Make camera look at center
-        camera.lookAt(0, 0, 0);
+        // Make camera look at current target
+        camera.lookAt(controls.target);
       }
 
       topMat.uniforms.customCameraPosition.value.copy(camera.position);
-      // Optionally adjust effect scale if needed
-      topMat.uniforms.effectScale.value = 0.7;  // This needs to be tuned
+      topMat.uniforms.effectScale.value = 0.7;
       controls.update();
       renderer.render(scene, camera);
     }
