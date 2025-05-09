@@ -161,22 +161,34 @@
         void main() {
           // Calculate view direction and fresnel effect
           vec3 viewDir = normalize(customCameraPosition - vWorldPosition);
-          // Increase the fresnel power for stronger edge response
-          float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), 2.0); // Changed from 2.0 to 1.5
+          float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), 1.5);
+          
+          // Calculate rotation angle based on view direction
+          float rotationAngle = atan(viewDir.y, viewDir.x);
+          
+          // Create rotation matrix
+          float c = cos(rotationAngle);
+          float s = sin(rotationAngle);
+          mat2 rotationMatrix = mat2(
+            c, -s,
+            s, c
+          );
           
           // Create scaled UV coordinates for the holographic effect
           vec2 holoUV = vUv - 0.5;  // Center UVs
           holoUV *= effectScale;     // Scale up
+          
+          // Apply rotation
+          holoUV = rotationMatrix * holoUV;
+          
           holoUV += 0.5;            // Move back to [0,1] range
           
           // Add view-dependent shift
-          // Increase view-dependent shift
-          vec2 viewOffset = viewDir.xy * 0.12; // Changed from 0.15 to 0.25
+          vec2 viewOffset = viewDir.xy * 0.12; // Must stay at 0.12 to prevent clipping
           holoUV += viewOffset;
           
           // Add scaled fresnel-based radial shift
-          // Increase the radial shift
-          float radialShift = fresnel * 0.1 * effectScale; // Changed from 0.1 to 0.2
+          float radialShift = fresnel * 0.1 * effectScale;
           vec2 toCenter = normalize(holoUV - vec2(0.5));
           holoUV += toCenter * radialShift;
           
@@ -184,13 +196,12 @@
           holoUV = fract(holoUV);
           
           // Sample textures
-          float mask = texture2D(maskMap, vUv).r;  // Keep original UVs for mask
-          vec3 silverColor = texture2D(silverMap, vUv).rgb;  // Keep original UVs for silver
+          float mask = texture2D(maskMap, vUv).r;
+          vec3 silverColor = texture2D(silverMap, vUv).rgb;
           vec3 purpleColor = texture2D(purpleMap, holoUV).rgb;
           
           // Adjust holographic intensity based on viewing angle
-          // Boost the holographic intensity
-          purpleColor *= (0.9 + 0.8 * fresnel); // Changed from (0.7 + 0.6) to (0.8 + 0.8)
+          purpleColor *= (0.9 + 0.8 * fresnel);
           
           // Mix colors using mask
           vec3 finalColor = mix(silverColor, purpleColor, mask);
