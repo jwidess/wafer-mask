@@ -83,12 +83,34 @@
     .home-button:hover {
       background-color: rgb(255, 255, 255);
     }
+
+    .helper-text {
+      position: absolute;
+      top: 10px;
+      left: 340px;
+      color: white;
+      background-color: rgba(255, 100, 100, 0.7);
+      padding: 7px 12px;
+      border-radius: 4px;
+      font-size: 20px;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity 0.5s ease;
+    }
+
+    .helper-text.hidden {
+      opacity: 0;
+    }
   </style>
 </head>
 
 <body>
   <!-- Add this line right after the body tag -->
   <a href="https://github.com/jwidess/wafer-mask" class="home-button">Home</a>
+
+  <!-- Add this line right after the home button and before the file input -->
+  <div id="helperText" class="helper-text">&#8592; Choose an image to begin!</div>
 
   <!-- File input for uploading an image -->
   <input type="file" id="imgInput" accept="image/*" />
@@ -436,6 +458,9 @@
 
     // === Image Input & Mask Processing ===
     document.getElementById('imgInput').addEventListener('change', e => {
+      // Hide helper text when file is selected
+      document.getElementById('helperText').classList.add('hidden');
+      
       const file = e.target.files[0];
       if (!file) return;
       const img = new Image();
@@ -444,6 +469,11 @@
         processImage(img);
       };
       img.src = URL.createObjectURL(file); // Load the selected image
+    });
+
+    // Show helper text again if file input is cleared
+    document.getElementById('imgInput').addEventListener('click', () => {
+      document.getElementById('helperText').classList.remove('hidden');
     });
 
     // Add ambient light for general illumination
