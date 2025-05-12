@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Iridescent Disk</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<script type="module">
+  import * as THREE from 'https://unpkg.com/three@0.126.1/build/three.module.js';
+  import { OrbitControls } from 'https://unpkg.com/three@0.126.1/examples/jsm/controls/OrbitControls.js';
+
+  // Scene setup
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.z = 3;
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  // Add OrbitControls
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; // smooth motion
+  controls.dampingFactor = 0.05;
+
+  // Iridescent shader (simplified for a flat disk)
+  const vertexShader = `
+    varying vec3 vNormal;
+    varying vec3 vViewDir;
+
+    void main() {
+      vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+      vNormal = normalize(normalMatrix * normal);
+      vViewDir = normalize(cameraPosition - worldPosition.xyz);
+      gl_Position = projectionMatrix * viewMatrix * worldPosition;
+    }
+  `;
+
+  const fragmentShader = `
+    varying vec3 vNormal;
+    varying vec3 vViewDir;
+
+    vec3 spectrum(float n) {
+      return vec3(
+        0.5 + 0.5 * cos(6.28318 * (n + 0.0)),
+        0.5 + 0.5 * cos(6.28318 * (n + 0.33)),
+        0.5 + 0.5 * cos(6.28318 * (n + 0.67))
+      );
+    }
+
+    void main() {
+      float intensity = dot(normalize(vNormal), normalize(vViewDir));
+      vec3 color = spectrum(intensity);
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `;
+
+  const shaderMaterial = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    side: THREE.DoubleSide,
+  });
+
+  const geometry = new THREE.CylinderGeometry(1, 1, 0.01, 64);
+  const disk = new THREE.Mesh(geometry, shaderMaterial);
+  scene.add(disk);
+
+  function animate() {
+    requestAnimationFrame(animate);
+    disk.rotation.y += 0.01;
+    disk.rotation.x += 0.005;
+    controls.update();
+    renderer.render(scene, camera);
+  }
+
+  animate();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+</script>
+</body>
+</html>
