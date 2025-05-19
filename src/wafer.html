@@ -436,23 +436,12 @@
         const event = new Event('change');
         imgInput.dispatchEvent(event);
       }
-    });
-
-    // Add event listener to the "Reset Scale" button
+    });    // Add event listener to the "Reset Scale" button
     document.getElementById('resetScale').addEventListener('click', () => {
       const scaleSlider = document.getElementById('scaleSlider');
+      const scaleNumber = document.getElementById('scaleNumber');
       scaleSlider.value = 1; // Reset the slider to its default value
-      const imgInput = document.getElementById('imgInput');
-      if (imgInput.files.length > 0) {
-        const event = new Event('change');
-        imgInput.dispatchEvent(event); // Reprocess the mask with the default scale
-      }
-    });
-
-    // Add event listener to the "Reset Scale" button
-    document.getElementById('resetScale').addEventListener('click', () => {
-      const scaleSlider = document.getElementById('scaleSlider');
-      scaleSlider.value = 1; // Reset the slider to its default value
+      scaleNumber.value = 1; // Reset the number input to its default value
       if (currentImage) {
         processImage(currentImage); // Reprocess the current image with the default scale
       }
