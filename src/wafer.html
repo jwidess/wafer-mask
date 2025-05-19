@@ -136,6 +136,15 @@
       flex-wrap: wrap;
     }
 
+    /* Special handling for scale control row */
+    .control-row:has(input[type="range"]) {
+      flex-wrap: nowrap;
+    }
+
+    .control-row:has(input[type="range"]) label {
+      flex-shrink: 0;
+    }
+
     input[type="checkbox"] {
       width: 1.2rem;
       height: 1.2rem;
@@ -143,18 +152,17 @@
 
     input[type="range"] {
       flex: 1;
-      min-width: 100px;
+      min-width: 80px;
       height: 1.5rem;
-    }
-
-    input[type="number"] {
-      width: 3.5rem;
+    }    input[type="number"] {
+      width: 3rem;
       padding: 0.25rem;
       border: none;
       border-radius: 0.25rem;
       text-align: center;
       font-size: 0.9rem;
-    }    /* Mobile optimizations */
+      flex-shrink: 0;
+    }/* Mobile optimizations */
     @media (max-width: 768px) {
       .control-panel {
         width: 200px;
@@ -190,7 +198,7 @@
       }
 
       input[type="number"] {
-        width: 2rem;
+        width: 1.75rem;
         padding: 0.2rem;
         font-size: 0.8rem;
       }
