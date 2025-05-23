@@ -31,11 +31,13 @@
   const vertexShader = `
     varying vec3 vNormal;
     varying vec3 vViewDir;
+    varying vec2 vUv;
 
     void main() {
       vec4 worldPosition = modelMatrix * vec4(position, 1.0);
       vNormal = normalize(normalMatrix * normal);
       vViewDir = normalize(cameraPosition - worldPosition.xyz);
+      vUv = uv;
       gl_Position = projectionMatrix * viewMatrix * worldPosition;
     }
   `;
@@ -43,19 +45,46 @@
   const fragmentShader = `
     varying vec3 vNormal;
     varying vec3 vViewDir;
+    varying vec2 vUv;
 
-    vec3 spectrum(float n) {
-      return vec3(
-        0.5 + 0.5 * cos(6.28318 * (n + 0.0)),
-        0.5 + 0.5 * cos(6.28318 * (n + 0.33)),
-        0.5 + 0.5 * cos(6.28318 * (n + 0.67))
-      );
+    const float iridStrength = 0.5;
+    const float iridSaturation = 0.7;
+    const float fresnelStrength = 3.0;
+    const vec3 lightCol = vec3(0.02, 0.7, 0.02);
+
+    vec4 pal(float t) {
+      return 0.5 + 0.5 * cos(6.28318 * (t + vec4(0.0, 1.0, 2.0, 0.0) / 3.0));
+    }
+
+    vec3 greyScale(vec3 color, float lerpVal) {
+      float greyCol = 0.3 * color.r + 0.59 * color.g + 0.11 * color.b;
+      vec3 grey = vec3(greyCol);
+      return mix(color, grey, lerpVal);
     }
 
     void main() {
-      float intensity = dot(normalize(vNormal), normalize(vViewDir));
-      vec3 color = spectrum(intensity);
-      gl_FragColor = vec4(color, 1.0);
+      vec3 normal = normalize(vNormal);
+      vec3 viewDir = normalize(vViewDir);
+      
+      // Lighting
+      vec3 lightPos = vec3(2.0, 2.0, -5.0);
+      vec3 lightDir = normalize(-lightPos);
+      float ldc = dot(lightDir, -normal);
+      vec3 rflct = reflect(normalize(lightPos), normal);
+      float spec = dot(rflct, viewDir);
+      
+      // Fresnel
+      float fresnel = 1.0 - dot(normal, viewDir);
+      fresnel *= fresnelStrength;
+
+      // Base color with lighting
+      vec3 col = (0.4 + 0.3 * ldc + pow(spec, 2.0) * 0.3) * lightCol * 0.3;
+      
+      // Iridescence
+      vec4 irid = pal(fresnel);
+      col += greyScale(irid.rgb, 1.0 - iridSaturation) * iridStrength;
+      
+      gl_FragColor = vec4(col, 1.0);
     }
   `;
 
@@ -71,8 +100,6 @@
 
   function animate() {
     requestAnimationFrame(animate);
-    disk.rotation.y += 0.01;
-    disk.rotation.x += 0.005;
     controls.update();
     renderer.render(scene, camera);
   }
