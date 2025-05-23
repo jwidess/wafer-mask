@@ -370,54 +370,79 @@
         varying vec3 vNormal;
         varying vec3 vViewDir;
         varying vec2 vUv;
-          uniform sampler2D maskMap;
+        uniform sampler2D maskMap;
         uniform sampler2D silverMap;
 
         const float iridStrength = 0.5;
         const float iridSaturation = 0.7;
         const float fresnelStrength = 3.0;
         const vec3 lightCol = vec3(0.02, 0.7, 0.02);
-        const float bandFrequency = 0.9; // Adjust this to control number of color bands
-                                        // Lower values = fewer bands, Higher values = more bands
-                                        // Try values between 0.5 and 10.0
+        const float bandFrequency = 0.9;
 
-        vec4 pal(float t) {
-          return 0.5 + 0.5 * cos(6.28318 * bandFrequency * (t + vec4(0.0, 1.0, 2.0, 0.0) / 3.0));
+        // Rotation matrix for UV distortion
+        mat2 rotate2d(float angle) {
+            return mat2(
+                cos(angle), -sin(angle),
+                sin(angle), cos(angle)
+            );
+        }
+
+        // Dynamic color palette with view-dependent phase shift
+        vec4 pal(float t, vec3 viewDir) {
+            // Add view-dependent phase shift
+            float viewAngle = atan(viewDir.y, viewDir.x);
+            float heightInfluence = viewDir.z * 0.5; // How much height affects the pattern
+            
+            // Create dynamic phase shifts based on view
+            vec4 phases = vec4(0.0, 1.0, 2.0, 0.0) / 3.0;
+            phases += viewAngle * 0.2; // Rotate colors based on view angle
+            phases += heightInfluence; // Shift based on viewing height
+            
+            return 0.5 + 0.5 * cos(6.28318 * bandFrequency * (t + phases));
         }
 
         vec3 greyScale(vec3 color, float lerpVal) {
-          float greyCol = 0.3 * color.r + 0.59 * color.g + 0.11 * color.b;
-          vec3 grey = vec3(greyCol);
-          return mix(color, grey, lerpVal);
+            float greyCol = 0.3 * color.r + 0.59 * color.g + 0.11 * color.b;
+            vec3 grey = vec3(greyCol);
+            return mix(color, grey, lerpVal);
         }
 
         void main() {
-          vec3 normal = normalize(vNormal);
-          vec3 viewDir = normalize(vViewDir);
-          
-          // Lighting
-          vec3 lightPos = vec3(2.0, 2.0, -5.0);
-          vec3 lightDir = normalize(-lightPos);
-          float ldc = dot(lightDir, -normal);
-          vec3 rflct = reflect(normalize(lightPos), normal);
-          float spec = dot(rflct, viewDir);
-          
-          // Fresnel
-          float fresnel = 1.0 - dot(normal, viewDir);
-          fresnel *= fresnelStrength;          // Sample textures
-          float mask = texture2D(maskMap, vUv).r;
-          vec3 silverColor = texture2D(silverMap, vUv).rgb;
-          
-          // Base color with lighting
-          vec3 col = (0.4 + 0.3 * ldc + pow(spec, 2.0) * 0.3) * lightCol * 0.3;
-          
-          // Iridescence
-          vec4 irid = pal(fresnel);
-          vec3 finalColor = greyScale(irid.rgb, 1.0 - iridSaturation) * iridStrength;
-          finalColor *= (1.0 + fresnel * 0.5); // Enhance colors at glancing angles
-          
-          // Mix between silver and iridescent based on mask
-          gl_FragColor = vec4(mix(silverColor, finalColor, mask), 1.0);
+            vec3 normal = normalize(vNormal);
+            vec3 viewDir = normalize(vViewDir);
+              // Calculate view angle for color effects only
+            float viewAngle = atan(viewDir.y, viewDir.x) * 0.5;
+            
+            // Dynamic lighting based on view angle
+            vec3 lightPos = vec3(2.0, 2.0, -5.0);
+            lightPos.xy = rotate2d(viewAngle) * lightPos.xy;
+            vec3 lightDir = normalize(-lightPos);
+            
+            float ldc = dot(lightDir, -normal);
+            vec3 rflct = reflect(normalize(lightPos), normal);
+            float spec = pow(max(dot(rflct, viewDir), 0.0), 4.0); // Sharper specular
+            
+            // Enhanced Fresnel with angle-dependent falloff
+            float fresnel = 1.0 - dot(normal, viewDir);
+            float angleFalloff = pow(abs(dot(normal, vec3(0, 0, 1))), 0.5);
+            fresnel *= fresnelStrength * angleFalloff;
+              // Sample textures with original UVs
+            float mask = texture2D(maskMap, vUv).r;
+            vec3 silverColor = texture2D(silverMap, vUv).rgb;
+            
+            // Enhanced base color with dynamic lighting
+            vec3 col = (0.4 + 0.3 * ldc + spec * 0.5) * lightCol * 0.3;
+            
+            // Dynamic iridescence
+            vec4 irid = pal(fresnel, viewDir);
+            vec3 finalColor = greyScale(irid.rgb, 1.0 - iridSaturation) * iridStrength;
+            
+            // Add view-dependent color enhancement
+            float viewEnhance = pow(1.0 - abs(dot(normal, viewDir)), 2.0);
+            finalColor *= (1.0 + fresnel * 0.5 + viewEnhance);
+            
+            // Mix with additional view-dependent effects
+            gl_FragColor = vec4(mix(silverColor, finalColor, mask), 1.0);
         }
       `,
       side: THREE.DoubleSide
