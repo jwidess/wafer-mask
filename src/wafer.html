@@ -341,108 +341,85 @@
     maskTex.wrapS = maskTex.wrapT = THREE.ClampToEdgeWrapping;
     maskTex.minFilter = THREE.LinearMipmapLinearFilter;
     maskTex.magFilter = THREE.LinearFilter;
-    maskTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-
-    // === TextureLoader ===
+    maskTex.anisotropy = renderer.capabilities.getMaxAnisotropy();    // === TextureLoader ===
     const loader = new THREE.TextureLoader();
     const silverTex = loader.load('./textures/silver-texture-square.jpg');
     silverTex.wrapS = silverTex.wrapT = THREE.RepeatWrapping;
     silverTex.repeat.set(1, 1);
-    // Update the purple texture settings
-    const purpleTex = loader.load('./textures/holo-texture-square.jpg');
-    purpleTex.wrapS = purpleTex.wrapT = THREE.RepeatWrapping;
-    purpleTex.repeat.set(2, 2); // Increase the repeat to match the shader's UV scaling
 
     // Replace the entire ShaderMaterial definition
-    const topMat = new THREE.ShaderMaterial({
-      uniforms: {
+    const topMat = new THREE.ShaderMaterial({      uniforms: {
         maskMap: { value: maskTex },
         silverMap: { value: silverTex },
-        purpleMap: { value: purpleTex },
-        customCameraPosition: { value: new THREE.Vector3() },
-        effectScale: { value: 1.5 }  // Add scale uniform to control effect coverage
+        customCameraPosition: { value: new THREE.Vector3() }
       },
       vertexShader: `
-        varying vec2 vUv;
-        varying vec3 vWorldPosition;
         varying vec3 vNormal;
-        
+        varying vec3 vViewDir;
+        varying vec2 vUv;
+
         void main() {
-          vUv = uv;
           vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-          vWorldPosition = worldPosition.xyz;
-          vNormal = normalize(mat3(modelMatrix) * normal);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          vNormal = normalize(normalMatrix * normal);
+          vViewDir = normalize(cameraPosition - worldPosition.xyz);
+          vUv = uv;
+          gl_Position = projectionMatrix * viewMatrix * worldPosition;
         }
       `,
       fragmentShader: `
-        uniform sampler2D maskMap;
-        uniform sampler2D silverMap;
-        uniform sampler2D purpleMap;
-        uniform vec3 customCameraPosition;
-        uniform float effectScale;
-        
-        varying vec2 vUv;
-        varying vec3 vWorldPosition;
         varying vec3 vNormal;
-        
+        varying vec3 vViewDir;
+        varying vec2 vUv;
+          uniform sampler2D maskMap;
+        uniform sampler2D silverMap;
+
+        const float iridStrength = 0.5;
+        const float iridSaturation = 0.7;
+        const float fresnelStrength = 3.0;
+        const vec3 lightCol = vec3(0.02, 0.7, 0.02);
+
+        vec4 pal(float t) {
+          return 0.5 + 0.5 * cos(6.28318 * (t + vec4(0.0, 1.0, 2.0, 0.0) / 3.0));
+        }
+
+        vec3 greyScale(vec3 color, float lerpVal) {
+          float greyCol = 0.3 * color.r + 0.59 * color.g + 0.11 * color.b;
+          vec3 grey = vec3(greyCol);
+          return mix(color, grey, lerpVal);
+        }
+
         void main() {
-          // Calculate view direction and fresnel effect
-          vec3 viewDir = normalize(customCameraPosition - vWorldPosition);
-          float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), 1.2); // Reduced power for stronger effect
+          vec3 normal = normalize(vNormal);
+          vec3 viewDir = normalize(vViewDir);
           
-          // Enhanced rotation calculation
-          float rotationAngle = atan(viewDir.y, viewDir.x) * 2.0; // Doubled rotation speed
-          float additionalRotation = acos(dot(viewDir, vNormal)) * 0.5; // Add rotation based on view angle
-          rotationAngle += additionalRotation; // Combine rotations
+          // Lighting
+          vec3 lightPos = vec3(2.0, 2.0, -5.0);
+          vec3 lightDir = normalize(-lightPos);
+          float ldc = dot(lightDir, -normal);
+          vec3 rflct = reflect(normalize(lightPos), normal);
+          float spec = dot(rflct, viewDir);
           
-          // Create rotation matrix with enhanced rotation
-          float c = cos(rotationAngle);
-          float s = sin(rotationAngle);
-          mat2 rotationMatrix = mat2(
-            c, -s,
-            s, c
-          );
-          
-          // Create scaled UV coordinates for the holographic effect
-          vec2 holoUV = vUv - 0.5;
-          holoUV *= effectScale;
-          
-          // Apply enhanced rotation
-          holoUV = rotationMatrix * holoUV;
-          holoUV += 0.5;
-          
-          // Add enhanced view-dependent shift
-          vec2 viewOffset = viewDir.xy * 0.07; // Increased from 0.12
-          holoUV += viewOffset;
-          
-          // Add scaled fresnel-based radial shift
-          float radialShift = fresnel * 0.15 * effectScale; // Increased from 0.1
-          vec2 toCenter = normalize(holoUV - vec2(0.5));
-          holoUV += toCenter * radialShift;
-          
-          // Ensure UVs stay within bounds
-          holoUV = fract(holoUV);
-          
+          // Fresnel
+          float fresnel = 1.0 - dot(normal, viewDir);
+          fresnel *= fresnelStrength;
+
           // Sample textures
           float mask = texture2D(maskMap, vUv).r;
-          vec3 silverColor = texture2D(silverMap, vUv).rgb;
-          vec3 purpleColor = texture2D(purpleMap, holoUV).rgb;
+          vec3 silverColor = texture2D(silverMap, vUv * 2.0).rgb;
           
-          // Enhance holographic color intensity
-          purpleColor = pow(purpleColor, vec3(1.5)); // Gamma adjustment for more vibrant colors
-          purpleColor *= 1.2; // Boost overall intensity
+          // Base color with lighting
+          vec3 col = (0.4 + 0.3 * ldc + pow(spec, 2.0) * 0.3) * lightCol * 0.3;
           
-          // Enhanced viewing angle effect
-          float viewEffect = 1.2 - 0.5 * abs(dot(viewDir, vNormal)); // More dramatic angle response
-          purpleColor *= (1.0 + fresnel * 1.2) * viewEffect; // Increased fresnel influence
+          // Iridescence
+          vec4 irid = pal(fresnel);
+          vec3 finalColor = greyScale(irid.rgb, 1.0 - iridSaturation) * iridStrength;
+          finalColor *= (1.0 + fresnel * 0.5); // Enhance colors at glancing angles
           
-          // Mix colors using enhanced mask
-          vec3 finalColor = mix(silverColor, purpleColor, mask * (0.95 + 0.15 * fresnel));
-          
-          gl_FragColor = vec4(finalColor, 1.0);
+          // Mix between silver and iridescent based on mask
+          gl_FragColor = vec4(mix(silverColor, finalColor, mask), 1.0);
         }
-      `
+      `,
+      side: THREE.DoubleSide
     });
 
     // Bottom and side material with grey color
@@ -657,9 +634,7 @@
       // Modify your auto-rotation check in the animate function
       if (!isAutoRotating && autoRotateEnabled && Date.now() - lastInteraction > AUTO_ROTATION_DELAY) {
         isAutoRotating = true;
-      }
-
-      // Apply auto-rotation if active
+      }      // Apply auto-rotation if active
       if (isAutoRotating) {
         // Smoothly move target back to center
         controls.target.lerp(CENTER, 0.01);
@@ -677,7 +652,6 @@
       }
 
       topMat.uniforms.customCameraPosition.value.copy(camera.position);
-      topMat.uniforms.effectScale.value = 0.7;
       controls.update();
       renderer.render(scene, camera);
     }
