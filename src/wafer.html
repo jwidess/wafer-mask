@@ -524,15 +524,25 @@
       mctx.drawImage(img, 0, 0, img.width, img.height, x, y, w, h);
       mctx.restore();
 
-      // Process image: Map luminance directly to mask intensity
+      // Process image: Map luminance to 8 distinct levels
       const id = mctx.getImageData(0, 0, SIZE, SIZE);
-      const invert = document.getElementById('invertMask').checked; // Check if the mask should be inverted
+      const invert = document.getElementById('invertMask').checked;
+      const LEVELS = 8; // Number of gray levels
+
       for (let i = 0; i < id.data.length; i += 4) {
         // Calculate luminance (same formula as before)
         let lum = 0.299 * id.data[i] + 0.587 * id.data[i + 1] + 0.114 * id.data[i + 2];
         
-        // Normalize to 0-1 range and invert if needed
+        // Normalize to 0-1 range
         lum = lum / 255;
+        
+        // Quantize to 8 levels (0 to 7)
+        let level = Math.floor(lum * LEVELS);
+        // Convert level back to 0-1 range
+        lum = level / (LEVELS - 1);
+        
+        // Invert by default (so dark parts are holographic), then optionally invert again
+        lum = 1 - lum;
         if (invert) lum = 1 - lum;
         
         // Convert back to 0-255 range for the mask
