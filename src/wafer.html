@@ -527,20 +527,21 @@
       mctx.drawImage(img, 0, 0, img.width, img.height, x, y, w, h);
       mctx.restore();
 
-      // Threshold image: dark → white, light → black
+      // Process image with multiple grey levels
       const id = mctx.getImageData(0, 0, SIZE, SIZE);
       const invert = document.getElementById('invertMask').checked; // Check if the mask should be inverted
+
+      const greyLevels = 16; // Number of grey levels (can be adjusted)
+      const stepSize = 256 / greyLevels;
+      
       for (let i = 0; i < id.data.length; i += 4) {
         const lum = 0.299 * id.data[i] + 0.587 * id.data[i + 1] + 0.114 * id.data[i + 2];
-        if (invert ? lum >= 128 : lum < 128) {
-          id.data[i] = 255;
-          id.data[i + 1] = 255;
-          id.data[i + 2] = 255;
-        } else {
-          id.data[i] = 0;
-          id.data[i + 1] = 0;
-          id.data[i + 2] = 0;
-        }
+        const level = Math.floor(lum / stepSize);
+        const value = invert ? (level * stepSize) : (255 - (level * stepSize));
+        
+        id.data[i] = value;
+        id.data[i + 1] = value;
+        id.data[i + 2] = value;
         id.data[i + 3] = 255; // Fully opaque
       }
       mctx.putImageData(id, 0, 0);
