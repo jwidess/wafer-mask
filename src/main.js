@@ -80,7 +80,8 @@ const topMat = new THREE.ShaderMaterial({
     uniforms: {
         maskMap: { value: maskTex },
         silverMap: { value: silverTex },
-        customCameraPosition: { value: new THREE.Vector3() }
+        customCameraPosition: { value: new THREE.Vector3() },
+        filmThickness: { value: 500.0 } // nm, typical SiO2 thickness
     },
     vertexShader: `
         varying vec3 vNormal;
@@ -101,77 +102,60 @@ const topMat = new THREE.ShaderMaterial({
         varying vec2 vUv;
         uniform sampler2D maskMap;
         uniform sampler2D silverMap;
+        uniform float filmThickness; // in nm
 
-        const float iridStrength = 0.5;
-        const float iridSaturation = 0.7;
-        const float fresnelStrength = 3.0;
-        const vec3 lightCol = vec3(0.02, 0.7, 0.02);
-        const float bandFrequency = 0.9;
+        // Physical constants for SiO2 on Si
+        const float n0 = 1.0;    // Air
+        const float n1 = 1.46;   // SiO2
+        const float n2 = 3.88;   // Si (approx, for visible)
+        const float k2 = 0.02;   // Si absorption (approx)
 
-        // Rotation matrix for UV distortion
-        mat2 rotate2d(float angle) {
-            return mat2(
-                cos(angle), -sin(angle),
-                sin(angle), cos(angle)
-            );
-        }
+        // Wavelengths for RGB (in nm)
+        const float lambdaR = 650.0;
+        const float lambdaG = 510.0;
+        const float lambdaB = 475.0;
 
-        // Dynamic color palette with view-dependent phase shift
-        vec4 pal(float t, vec3 viewDir) {
-            // Add view-dependent phase shift
-            float viewAngle = atan(viewDir.y, viewDir.x);
-            float heightInfluence = viewDir.z * 0.5; // How much height affects the pattern
-            
-            // Create dynamic phase shifts based on view
-            vec4 phases = vec4(0.0, 1.0, 2.0, 0.0) / 3.0;
-            phases += viewAngle * 0.2; // Rotate colors based on view angle
-            phases += heightInfluence; // Shift based on viewing height
-            
-            return 0.5 + 0.5 * cos(6.28318 * bandFrequency * (t + phases));
-        }
+        // Calculate reflectance for a single wavelength
+        float thinFilmReflectance(float lambda, float cosTheta0) {
+            // Snell's law
+            float sinTheta1 = n0 / n1 * sqrt(max(0.0, 1.0 - cosTheta0 * cosTheta0));
+            float cosTheta1 = sqrt(max(0.0, 1.0 - sinTheta1 * sinTheta1));
+            float cosTheta2 = sqrt(max(0.0, 1.0 - pow(n1 / n2 * sinTheta1, 2.0)));
 
-        vec3 greyScale(vec3 color, float lerpVal) {
-            float greyCol = 0.3 * color.r + 0.59 * color.g + 0.11 * color.b;
-            vec3 grey = vec3(greyCol);
-            return mix(color, grey, lerpVal);
+            // Fresnel coefficients (amplitude, s-polarization)
+            float r01 = (n0 * cosTheta0 - n1 * cosTheta1) / (n0 * cosTheta0 + n1 * cosTheta1);
+            float r12 = (n1 * cosTheta1 - n2 * cosTheta2) / (n1 * cosTheta1 + n2 * cosTheta2);
+
+            // Phase difference
+            float delta = 4.0 * 3.14159265 * n1 * filmThickness * cosTheta1 / lambda;
+
+            // Interference
+            float r = (r01 * r01 + r12 * r12 + 2.0 * r01 * r12 * cos(delta)) /
+                      (1.0 + r01 * r01 * r12 * r12 + 2.0 * r01 * r12 * cos(delta));
+            return clamp(r, 0.0, 1.0);
         }
 
         void main() {
             vec3 normal = normalize(vNormal);
             vec3 viewDir = normalize(vViewDir);
-              // Calculate view angle for color effects only
-            float viewAngle = atan(viewDir.y, viewDir.x) * 0.5;
-            
-            // Dynamic lighting based on view angle
-            vec3 lightPos = vec3(2.0, 2.0, -5.0);
-            lightPos.xy = rotate2d(viewAngle) * lightPos.xy;
-            vec3 lightDir = normalize(-lightPos);
-            
-            float ldc = dot(lightDir, -normal);
-            vec3 rflct = reflect(normalize(lightPos), normal);
-            float spec = pow(max(dot(rflct, viewDir), 0.0), 4.0); // Sharper specular
-            
-            // Enhanced Fresnel with angle-dependent falloff
-            float fresnel = 1.0 - dot(normal, viewDir);
-            float angleFalloff = pow(abs(dot(normal, vec3(0, 0, 1))), 0.5);
-            fresnel *= fresnelStrength * angleFalloff;
-              // Sample textures with original UVs
+            float cosTheta0_raw = abs(dot(normal, viewDir));
+            // Blend toward normal incidence to reduce angle sensitivity
+            float blend = 0.9; // 0 = full angle dependence, 1 = always normal incidence
+            float cosTheta0 = mix(cosTheta0_raw, 1.0, blend);
+
+            // Thin film reflectance for RGB
+            float r = thinFilmReflectance(lambdaR, cosTheta0);
+            float g = thinFilmReflectance(lambdaG, cosTheta0);
+            float b = thinFilmReflectance(lambdaB, cosTheta0);
+            vec3 filmColor = vec3(r, g, b);
+
+            // Sample mask and silver
             float mask = texture2D(maskMap, vUv).r;
             vec3 silverColor = texture2D(silverMap, vUv).rgb;
-            
-            // Enhanced base color with dynamic lighting
-            vec3 col = (0.4 + 0.3 * ldc + spec * 0.5) * lightCol * 0.3;
-            
-            // Dynamic iridescence
-            vec4 irid = pal(fresnel, viewDir);
-            vec3 finalColor = greyScale(irid.rgb, 1.0 - iridSaturation) * iridStrength;
-            
-            // Add view-dependent color enhancement
-            float viewEnhance = pow(1.0 - abs(dot(normal, viewDir)), 2.0);
-            finalColor *= (1.0 + fresnel * 0.5 + viewEnhance);
-            
-            // Mix with additional view-dependent effects
-            gl_FragColor = vec4(mix(silverColor, finalColor, mask), 1.0);
+
+            // Mix: masked = film, unmasked = silver
+            vec3 finalColor = mix(silverColor, filmColor, mask);
+            gl_FragColor = vec4(finalColor, 1.0);
         }
       `,
     side: THREE.DoubleSide
@@ -423,4 +407,28 @@ document.getElementById('exportImage').addEventListener('click', () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+});
+
+// === Film Thickness Slider Logic ===
+const thicknessSlider = document.getElementById('thicknessSlider');
+const thicknessNumber = document.getElementById('thicknessNumber');
+
+// Sync number input with slider
+thicknessSlider.addEventListener('input', (e) => {
+    thicknessNumber.value = e.target.value;
+    topMat.uniforms.filmThickness.value = parseFloat(e.target.value);
+});
+
+// Sync slider with number input
+thicknessNumber.addEventListener('input', (e) => {
+    let value = Math.min(Math.max(e.target.value, 50), 1000);
+    thicknessSlider.value = value;
+    topMat.uniforms.filmThickness.value = parseFloat(value);
+});
+
+// === Film Thickness Reset Button Logic ===
+document.getElementById('resetThickness').addEventListener('click', () => {
+    thicknessSlider.value = 500;
+    thicknessNumber.value = 500;
+    topMat.uniforms.filmThickness.value = 500;
 });
