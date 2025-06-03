@@ -149,12 +149,20 @@ const topMat = new THREE.ShaderMaterial({
             float b = thinFilmReflectance(lambdaB, cosTheta0);
             vec3 filmColor = vec3(r, g, b);
 
+            // --- Add strong mirror-like reflection ---
+            // Simple Fresnel term for reflectivity
+            float fresnel = pow(1.0 - cosTheta0_raw, 5.0) * 0.85 + 0.15;
+            // Use white for mirror highlight
+            vec3 mirror = vec3(1.0);
+            // Blend film color with mirror reflection
+            vec3 reflectiveFilm = mix(filmColor, mirror, fresnel * 0.7);
+
             // Sample mask and silver
             float mask = texture2D(maskMap, vUv).r;
             vec3 silverColor = texture2D(silverMap, vUv).rgb;
 
-            // Mix: masked = film, unmasked = silver
-            vec3 finalColor = mix(silverColor, filmColor, mask);
+            // Mix: masked = reflective film, unmasked = silver
+            vec3 finalColor = mix(silverColor, reflectiveFilm, mask);
             gl_FragColor = vec4(finalColor, 1.0);
         }
       `,
