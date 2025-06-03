@@ -1,9 +1,18 @@
 import * as THREE from 'https://unpkg.com/three@0.126.1/build/three.module.js';
 import { OrbitControls } from 'https://unpkg.com/three@0.126.1/examples/jsm/controls/OrbitControls.js';
+import { EXRLoader } from 'https://unpkg.com/three@0.126.1/examples/jsm/loaders/EXRLoader.js';
 
 // === Scene Setup ===
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x222222);
+
+// === Realistic Environment Map ===
+const exrLoader = new EXRLoader();
+exrLoader.load('./textures/env/studio_small_08_4k.exr', function (texture) {
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    scene.background = texture;
+    scene.environment = texture;
+    topMat.uniforms.envMap.value = texture;
+});
 
 // === Camera Setup ===
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
@@ -81,7 +90,8 @@ const topMat = new THREE.ShaderMaterial({
         maskMap: { value: maskTex },
         silverMap: { value: silverTex },
         customCameraPosition: { value: new THREE.Vector3() },
-        filmThickness: { value: 500.0 } // nm, typical SiO2 thickness
+        filmThickness: { value: 500.0 }, // nm, typical SiO2 thickness
+        envMap: { value: null } // will be set after EXR loads
     },
     vertexShader: `
         varying vec3 vNormal;
@@ -103,6 +113,7 @@ const topMat = new THREE.ShaderMaterial({
         uniform sampler2D maskMap;
         uniform sampler2D silverMap;
         uniform float filmThickness; // in nm
+        uniform sampler2D envMap;
 
         // Physical constants for SiO2 on Si
         const float n0 = 1.0;    // Air
@@ -149,13 +160,18 @@ const topMat = new THREE.ShaderMaterial({
             float b = thinFilmReflectance(lambdaB, cosTheta0);
             vec3 filmColor = vec3(r, g, b);
 
-            // --- Add strong mirror-like reflection ---
-            // Simple Fresnel term for reflectivity
+            // --- Mirror-like environment reflection ---
+            vec3 reflectDir = reflect(-viewDir, normal);
+            // Convert reflectDir to equirectangular UV coordinates
+            float theta = atan(reflectDir.z, reflectDir.x);
+            float phi = acos(clamp(reflectDir.y, -1.0, 1.0));
+            vec2 envUv = vec2((theta / 3.14159265 + 1.0) * 0.5, phi / 3.14159265);
+            vec3 envColor = texture2D(envMap, envUv).rgb;
+
+            // Fresnel for reflectivity
             float fresnel = pow(1.0 - cosTheta0_raw, 5.0) * 0.85 + 0.15;
-            // Use white for mirror highlight
-            vec3 mirror = vec3(1.0);
-            // Blend film color with mirror reflection
-            vec3 reflectiveFilm = mix(filmColor, mirror, fresnel * 0.7);
+            // Blend film color with environment reflection
+            vec3 reflectiveFilm = mix(filmColor, envColor, fresnel * 0.95);
 
             // Sample mask and silver
             float mask = texture2D(maskMap, vUv).r;
