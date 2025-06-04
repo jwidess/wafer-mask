@@ -121,10 +121,10 @@ const topMat = new THREE.ShaderMaterial({
         const float n2 = 3.88;   // Si (approx, for visible)
         const float k2 = 0.02;   // Si absorption (approx)
 
-        // Wavelengths for RGB (in nm)
-        const float lambdaR = 650.0;
-        const float lambdaG = 510.0;
-        const float lambdaB = 475.0;
+        // Wavelengths for RGB (in nm) - more accurate for sRGB
+        const float lambdaR = 630.0;
+        const float lambdaG = 525.0;
+        const float lambdaB = 500.0;
 
         // Calculate reflectance for a single wavelength
         float thinFilmReflectance(float lambda, float cosTheta0) {
@@ -151,7 +151,7 @@ const topMat = new THREE.ShaderMaterial({
             vec3 viewDir = normalize(vViewDir);
             float cosTheta0_raw = abs(dot(normal, viewDir));
             // Blend toward normal incidence to reduce angle sensitivity
-            float blend = 0.9; // 0 = full angle dependence, 1 = always normal incidence
+            float blend = 0.995; // Further increased for more normal-incidence weighting
             float cosTheta0 = mix(cosTheta0_raw, 1.0, blend);
 
             // Thin film reflectance for RGB
@@ -159,19 +159,23 @@ const topMat = new THREE.ShaderMaterial({
             float g = thinFilmReflectance(lambdaG, cosTheta0);
             float b = thinFilmReflectance(lambdaB, cosTheta0);
             vec3 filmColor = vec3(r, g, b);
+            // Increase minimum reflectance floor to prevent black at normal incidence
+            filmColor = max(filmColor, vec3(0.12, 0.12, 0.12));
 
             // --- Mirror-like environment reflection ---
             vec3 reflectDir = reflect(-viewDir, normal);
-            // Convert reflectDir to equirectangular UV coordinates
-            float theta = atan(reflectDir.z, reflectDir.x);
-            float phi = acos(clamp(reflectDir.y, -1.0, 1.0));
+            reflectDir = normalize(reflectDir);
+            // Equirectangular mapping expects y-up, so swap y and z
+            vec3 dir = vec3(reflectDir.x, reflectDir.z, -reflectDir.y);
+            float theta = atan(dir.z, dir.x);
+            float phi = acos(clamp(dir.y, -1.0, 1.0));
             vec2 envUv = vec2((theta / 3.14159265 + 1.0) * 0.5, phi / 3.14159265);
             vec3 envColor = texture2D(envMap, envUv).rgb;
 
             // Fresnel for reflectivity
-            float fresnel = pow(1.0 - cosTheta0_raw, 5.0) * 0.85 + 0.15;
-            // Blend film color with environment reflection
-            vec3 reflectiveFilm = mix(filmColor, envColor, fresnel * 0.95);
+            float fresnel = pow(1.0 - cosTheta0_raw, 5.0) * 0.15 + 0.05;
+            // Reduce environment reflection blend at normal incidence
+            vec3 reflectiveFilm = mix(filmColor, envColor, fresnel * 0.85);
 
             // Sample mask and silver
             float mask = texture2D(maskMap, vUv).r;
