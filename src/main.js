@@ -400,6 +400,17 @@ toggleBtn.addEventListener('click', () => {
     }
 });
 
+// === Axes Helper Overlay ===
+// Mini axes in bottom right corner
+const axesScene = new THREE.Scene();
+const axesHelper = new THREE.AxesHelper(0.7); // Size of axes
+axesScene.add(axesHelper);
+
+// Camera for the axes overlay
+const axesCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 10);
+axesCamera.position.set(0, 0, 2);
+axesCamera.lookAt(0, 0, 0);
+
 // === Animation Loop ===
 // Modify the animation loop to rotate camera instead of wafer
 function animate() {
@@ -427,7 +438,20 @@ function animate() {
 
     topMat.uniforms.customCameraPosition.value.copy(camera.position);
     controls.update();
+    renderer.setViewport(0, 0, innerWidth, innerHeight);
+    renderer.setScissorTest(false);
     renderer.render(scene, camera);
+
+    // --- Axes overlay ---
+    const axesSize = Math.min(innerWidth, innerHeight) * 0.15; // 15% of shortest side
+    renderer.clearDepth(); // Clear depth buffer for overlay
+    renderer.setScissorTest(true);
+    renderer.setViewport(innerWidth - axesSize - 16, 16, axesSize, axesSize); // 16px margin
+    renderer.setScissor(innerWidth - axesSize - 16, 16, axesSize, axesSize);
+    // Sync axes orientation to main camera (not camera quaternion)
+    axesHelper.quaternion.copy(camera.quaternion);
+    renderer.render(axesScene, axesCamera);
+    renderer.setScissorTest(false);
 }
 animate();
 
