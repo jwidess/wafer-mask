@@ -465,7 +465,10 @@ animate();
 
 // === Export Image Button Logic ===
 document.getElementById('exportImage').addEventListener('click', () => {
-    renderer.render(scene, camera); // Ensure latest frame
+    // Reset viewport and scissor to full canvas before export
+    renderer.setViewport(0, 0, renderer.domElement.width, renderer.domElement.height);
+    renderer.setScissorTest(false);
+    renderer.render(scene, camera);
     const dataURL = renderer.domElement.toDataURL('image/png');
     const link = document.createElement('a');
     link.href = dataURL;
