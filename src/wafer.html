@@ -35,11 +35,32 @@
         <input type="number" id="scaleNumber" min="0.1" max="3" step="0.1" value="1" />
       </div>
 
-      <!-- Buttons -->
-      <button id="resetScale" class="btn">Reset Scale</button>
+      <!-- Film thickness control -->
+      <div class="control-row" style="flex-direction: column; align-items: flex-start; gap: 0.2rem;">
+        <label for="thicknessSlider" style="color: white; margin-bottom: 0.1rem;">SiO<sub>2</sub> Thickness (nm):</label>
+        <div style="display: flex; width: 100%; align-items: center; gap: 0.5rem;">
+          <input type="range" id="thicknessSlider" min="5" max="1000" step="1" value="500" />
+          <span style="display: flex; align-items: center; gap: 0.2rem;">
+            <input type="number" id="thicknessNumber" min="5" max="1000" step="1" value="500" style="width: 3.5rem;" />
+            <span style="color: #fff; font-size: 0.95em;">nm</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Buttons row: Reset Scale and Reset Thickness -->
+      <div class="control-row" style="gap: 0.5rem; flex-direction: row; align-items: stretch; width: 100%;">
+        <div style="flex:1; display: flex;"><button id="resetScale" class="btn" style="width: 100%;">Reset Scale</button></div>
+        <div style="flex:1; display: flex;"><button id="resetThickness" class="btn" style="width: 100%;">Reset Thickness</button></div>
+      </div>
+
       <button id="toggleRotation" class="btn">Disable Auto-Rotate</button>
       <button id="exportImage" class="btn">Export Image</button>
     </div>
+  </div>
+
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading environment and assets...</div>
   </div>
 
   <script type="module" src="main.js"></script>

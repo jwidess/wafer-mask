@@ -1,9 +1,28 @@
 import * as THREE from 'https://unpkg.com/three@0.126.1/build/three.module.js';
 import { OrbitControls } from 'https://unpkg.com/three@0.126.1/examples/jsm/controls/OrbitControls.js';
+import { EXRLoader } from 'https://unpkg.com/three@0.126.1/examples/jsm/loaders/EXRLoader.js';
+
+// Show loading overlay
+const loadingOverlay = document.getElementById('loadingOverlay');
+if (loadingOverlay) loadingOverlay.style.display = '';
+let loadingTimeout = setTimeout(() => {
+    if (loadingOverlay) loadingOverlay.classList.add('hidden');
+}, 10000); // Fallback: hide after 10s
 
 // === Scene Setup ===
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x222222);
+
+// === Realistic Environment Map ===
+const exrLoader = new EXRLoader();
+exrLoader.load('./textures/env/studio_small_08_4k.exr', function (texture) {
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    scene.background = texture;
+    scene.environment = texture;
+    topMat.uniforms.envMap.value = texture;
+    // Hide loading overlay when done
+    if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    clearTimeout(loadingTimeout);
+});
 
 // === Camera Setup ===
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
@@ -24,9 +43,8 @@ controls.update();
 
 let lastInteraction = Date.now();
 let isAutoRotating = true;
-const AUTO_ROTATION_DELAY = 3000; // 3 seconds
+const AUTO_ROTATION_DELAY = 3000;
 
-// Add these event listeners after the controls setup
 controls.addEventListener('start', () => {
     isAutoRotating = false;
     lastInteraction = Date.now();
@@ -44,7 +62,7 @@ window.addEventListener('resize', () => {
 
 // === Wafer Geometry ===
 const RADIUS = 2;
-const THICK = 0.02;
+const THICK = 0.01;
 const topGeo = new THREE.CircleGeometry(RADIUS, 256);
 const bottomGeo = new THREE.CircleGeometry(RADIUS, 256);
 const sideGeo = new THREE.CylinderGeometry(RADIUS, RADIUS, THICK, 256, 1, true);
@@ -62,25 +80,23 @@ uv.needsUpdate = true;
 const SIZE = 2048;
 const maskCanvas = document.createElement('canvas');
 maskCanvas.width = maskCanvas.height = SIZE;
-const mctx = maskCanvas.getContext('2d');
+const mctx = maskCanvas.getContext('2d', { willReadFrequently: true });
 
 const maskTex = new THREE.CanvasTexture(maskCanvas);
 maskTex.flipY = false;
 maskTex.wrapS = maskTex.wrapT = THREE.ClampToEdgeWrapping;
 maskTex.minFilter = THREE.LinearMipmapLinearFilter;
 maskTex.magFilter = THREE.LinearFilter;
-maskTex.anisotropy = renderer.capabilities.getMaxAnisotropy();    // === TextureLoader ===
+maskTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
 const loader = new THREE.TextureLoader();
-const silverTex = loader.load('./textures/silver-texture-square.jpg');
-silverTex.wrapS = silverTex.wrapT = THREE.RepeatWrapping;
-silverTex.repeat.set(1, 1);
 
 // Replace the entire ShaderMaterial definition
 const topMat = new THREE.ShaderMaterial({
     uniforms: {
         maskMap: { value: maskTex },
-        silverMap: { value: silverTex },
-        customCameraPosition: { value: new THREE.Vector3() }
+        customCameraPosition: { value: new THREE.Vector3() },
+        filmThickness: { value: 500.0 }, // nm, default SiO2 thickness
+        envMap: { value: null } // will be set after EXR loads
     },
     vertexShader: `
         varying vec3 vNormal;
@@ -100,78 +116,89 @@ const topMat = new THREE.ShaderMaterial({
         varying vec3 vViewDir;
         varying vec2 vUv;
         uniform sampler2D maskMap;
-        uniform sampler2D silverMap;
+        uniform float filmThickness; // in nm
+        uniform sampler2D envMap;
 
-        const float iridStrength = 0.5;
-        const float iridSaturation = 0.7;
-        const float fresnelStrength = 3.0;
-        const vec3 lightCol = vec3(0.02, 0.7, 0.02);
-        const float bandFrequency = 0.9;
+        // Physical constants for SiO2 on Si
+        const float n0 = 1.0;    // Air - Refractive Index
+        const float n1 = 1.82;   // SiO2 - Refractive Index
+        const float n2 = 3.88;   // Si (approx, for visible)
+        const float k2 = 0.02;   // Si absorption (approx)
 
-        // Rotation matrix for UV distortion
-        mat2 rotate2d(float angle) {
-            return mat2(
-                cos(angle), -sin(angle),
-                sin(angle), cos(angle)
-            );
-        }
+        // Wavelengths for RGB (in nm)
+        const float lambdaR = 680.0;
+        const float lambdaG = 550.0;
+        const float lambdaB = 480.0;
 
-        // Dynamic color palette with view-dependent phase shift
-        vec4 pal(float t, vec3 viewDir) {
-            // Add view-dependent phase shift
-            float viewAngle = atan(viewDir.y, viewDir.x);
-            float heightInfluence = viewDir.z * 0.5; // How much height affects the pattern
-            
-            // Create dynamic phase shifts based on view
-            vec4 phases = vec4(0.0, 1.0, 2.0, 0.0) / 3.0;
-            phases += viewAngle * 0.2; // Rotate colors based on view angle
-            phases += heightInfluence; // Shift based on viewing height
-            
-            return 0.5 + 0.5 * cos(6.28318 * bandFrequency * (t + phases));
-        }
+        // Calculate reflectance for a single wavelength
+        float thinFilmReflectance(float lambda, float cosTheta0) {
+            // Snell's law
+            float sinTheta1 = n0 / n1 * sqrt(max(0.0, 1.0 - cosTheta0 * cosTheta0));
+            float cosTheta1 = sqrt(max(0.0, 1.0 - sinTheta1 * sinTheta1));
+            float cosTheta2 = sqrt(max(0.0, 1.0 - pow(n1 / n2 * sinTheta1, 2.0)));
 
-        vec3 greyScale(vec3 color, float lerpVal) {
-            float greyCol = 0.3 * color.r + 0.59 * color.g + 0.11 * color.b;
-            vec3 grey = vec3(greyCol);
-            return mix(color, grey, lerpVal);
+            // Fresnel coefficients (amplitude, s-polarization)
+            float r01 = (n0 * cosTheta0 - n1 * cosTheta1) / (n0 * cosTheta0 + n1 * cosTheta1);
+            float r12 = (n1 * cosTheta1 - n2 * cosTheta2) / (n1 * cosTheta1 + n2 * cosTheta2);
+
+            // Phase difference
+            float delta = 4.0 * 3.14159265 * n1 * filmThickness * cosTheta1 / lambda;
+
+            // Interference
+            float r = (r01 * r01 + r12 * r12 + 2.0 * r01 * r12 * cos(delta)) /
+                      (1.0 + r01 * r01 * r12 * r12 + 2.0 * r01 * r12 * cos(delta));
+            return clamp(r, 0.0, 1.0);
         }
 
         void main() {
             vec3 normal = normalize(vNormal);
             vec3 viewDir = normalize(vViewDir);
-              // Calculate view angle for color effects only
-            float viewAngle = atan(viewDir.y, viewDir.x) * 0.5;
-            
-            // Dynamic lighting based on view angle
-            vec3 lightPos = vec3(2.0, 2.0, -5.0);
-            lightPos.xy = rotate2d(viewAngle) * lightPos.xy;
-            vec3 lightDir = normalize(-lightPos);
-            
-            float ldc = dot(lightDir, -normal);
-            vec3 rflct = reflect(normalize(lightPos), normal);
-            float spec = pow(max(dot(rflct, viewDir), 0.0), 4.0); // Sharper specular
-            
-            // Enhanced Fresnel with angle-dependent falloff
-            float fresnel = 1.0 - dot(normal, viewDir);
-            float angleFalloff = pow(abs(dot(normal, vec3(0, 0, 1))), 0.5);
-            fresnel *= fresnelStrength * angleFalloff;
-              // Sample textures with original UVs
+            float cosTheta0_raw = abs(dot(normal, viewDir));
+            // Blend toward normal incidence to reduce angle sensitivity
+            float blend = 0.98;
+            float cosTheta0 = mix(cosTheta0_raw, 1.0, blend);
+
+            // Thin film reflectance for RGB
+            float r = thinFilmReflectance(lambdaR, cosTheta0);
+            float g = thinFilmReflectance(lambdaG, cosTheta0);
+            float b = thinFilmReflectance(lambdaB, cosTheta0);
+            vec3 filmColor = vec3(r, g, b);
+            // Lower minimum reflectance floor for more vivid color
+            filmColor = max(filmColor, vec3(0.05, 0.05, 0.05));
+            // Strong vibrancy: fully normalize and apply strong gamma
+            float maxChannel = max(max(filmColor.r, filmColor.g), filmColor.b);
+            if (maxChannel > 0.0) {
+                filmColor /= maxChannel; // Fully normalize to 1.0
+                filmColor = pow(filmColor, vec3(1.4)); // Stronger gamma for vibrancy
+                filmColor *= 0.5; // Make masked areas darker
+            }
+            filmColor = clamp(filmColor, 0.0, 1.0); // Clamp to valid range
+
+            // --- Mirror-like environment reflection ---
+            vec3 reflectDir = reflect(-viewDir, normal);
+            reflectDir = normalize(reflectDir);
+            // Standard equirectangular mapping for Three.js (y-up)
+            float theta = atan(reflectDir.z, reflectDir.x);
+            float phi = acos(clamp(reflectDir.y, -1.0, 1.0));
+            vec2 envUv = vec2(theta / (2.0 * 3.14159265) + 0.5, phi / 3.14159265);
+            vec3 envColor = texture2D(envMap, envUv).rgb;
+
+            // Fresnel for reflectivity
+            float fresnel = pow(1.0 - cosTheta0_raw, 5.0) * 0.15 + 0.05;
+            // Reduce environment reflection blend at normal incidence
+            vec3 reflectiveFilm = mix(filmColor, envColor, fresnel * 0.85);
+
+            // Sample mask
             float mask = texture2D(maskMap, vUv).r;
-            vec3 silverColor = texture2D(silverMap, vUv).rgb;
-            
-            // Enhanced base color with dynamic lighting
-            vec3 col = (0.4 + 0.3 * ldc + spec * 0.5) * lightCol * 0.3;
-            
-            // Dynamic iridescence
-            vec4 irid = pal(fresnel, viewDir);
-            vec3 finalColor = greyScale(irid.rgb, 1.0 - iridSaturation) * iridStrength;
-            
-            // Add view-dependent color enhancement
-            float viewEnhance = pow(1.0 - abs(dot(normal, viewDir)), 2.0);
-            finalColor *= (1.0 + fresnel * 0.5 + viewEnhance);
-            
-            // Mix with additional view-dependent effects
-            gl_FragColor = vec4(mix(silverColor, finalColor, mask), 1.0);
+
+            // --- Dynamic silver mirror for unmasked region ---
+            vec3 silverColor = vec3(0.97, 0.96, 0.92); // Silver RGB
+            float silverFresnel = pow(1.0 - cosTheta0_raw, 5.0) * 0.7 + 0.3;
+            vec3 silverMirror = mix(silverColor, envColor, silverFresnel); // Blend silver color with env reflection
+
+            // Mix: masked = reflective film, unmasked = silver mirror
+            vec3 finalColor = mix(silverMirror, reflectiveFilm, mask);
+            gl_FragColor = vec4(finalColor, 1.0);
         }
       `,
     side: THREE.DoubleSide
@@ -203,8 +230,6 @@ const side = new THREE.Mesh(sideGeo, sideMat);
 const wafer = new THREE.Group();
 wafer.add(top, bottom, side);
 scene.add(wafer);
-
-//scene.add(new THREE.AxesHelper(2));
 
 // === Preview Canvas ===
 const dctx = document.getElementById('preview').getContext('2d');
@@ -260,7 +285,7 @@ function processImage(img) {
     const id = mctx.getImageData(0, 0, SIZE, SIZE);
     const invert = document.getElementById('invertMask').checked; // Check if the mask should be inverted
 
-    const greyLevels = 16; // Number of grey levels (can be adjusted)
+    const greyLevels = 16; // Number of grey levels
     const stepSize = 256 / greyLevels;
 
     for (let i = 0; i < id.data.length; i += 4) {
@@ -307,11 +332,30 @@ window.addEventListener('load', () => {
     img.src = defaultImagePath; // Load the default image
 });
 
+// Debounce utility
+function debounce(fn, delay) {
+    let timer = null;
+    return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
+// Debounced processImage for scale slider
+const debouncedProcessImage = debounce(() => {
+    if (currentImage) processImage(currentImage);
+}, 20); // Debounce delay
+
 // Update the scale slider logic
-document.getElementById('scaleSlider').addEventListener('input', () => {
-    if (currentImage) {
-        processImage(currentImage); // Reprocess the current image with the new scale
-    }
+document.getElementById('scaleSlider').addEventListener('input', (e) => {
+    document.getElementById('scaleNumber').value = e.target.value;
+    debouncedProcessImage();
+});
+
+document.getElementById('scaleNumber').addEventListener('input', (e) => {
+    const value = Math.min(Math.max(e.target.value, 0.1), 3);
+    document.getElementById('scaleSlider').value = value;
+    debouncedProcessImage();
 });
 
 // === Image Input & Mask Processing ===
@@ -334,38 +378,20 @@ document.getElementById('imgInput').addEventListener('click', () => {
     document.getElementById('helperText').classList.remove('hidden');
 });
 
-// Add ambient light for general illumination
-const ambientLight = new THREE.AmbientLight(0xffffff, 1); // Soft white light
-scene.add(ambientLight);
-
-// Add directional light for highlights
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-directionalLight.position.set(5, 5, 5);
-scene.add(directionalLight);
-
-// Add a point light for better illumination
-const pointLight = new THREE.PointLight(0xffffff, 1, 10); // White light, intensity 1, range 10
-pointLight.position.set(0, 2, 2); // Position above the wafer
-scene.add(pointLight);
-
 // Sync the number input with the slider
 document.getElementById('scaleSlider').addEventListener('input', (e) => {
     document.getElementById('scaleNumber').value = e.target.value;
-    if (currentImage) {
-        processImage(currentImage);
-    }
+    debouncedProcessImage();
 });
 
 // Sync the slider with the number input
 document.getElementById('scaleNumber').addEventListener('input', (e) => {
     const value = Math.min(Math.max(e.target.value, 0.1), 3);
     document.getElementById('scaleSlider').value = value;
-    if (currentImage) {
-        processImage(currentImage);
-    }
+    debouncedProcessImage();
 });
 
-const CENTER = new THREE.Vector3(0, 0, 0);
+const CENTER = new THREE.Vector3(0, 0, 0); // Center point for auto-rotation
 
 const toggleBtn = document.getElementById('toggleRotation');
 let autoRotateEnabled = true; // Start with auto-rotation enabled
@@ -382,13 +408,24 @@ toggleBtn.addEventListener('click', () => {
     }
 });
 
+// === Axes Helper Overlay ===
+// Mini axes in bottom right corner
+const axesScene = new THREE.Scene();
+const axesHelper = new THREE.AxesHelper(0.7); // Size of axes
+axesScene.add(axesHelper);
+
+// Camera for the axes overlay
+const axesCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 10);
+axesCamera.position.set(0, 0, 2);
+axesCamera.lookAt(0, 0, 0);
+
 // === Animation Loop ===
 // Modify the animation loop to rotate camera instead of wafer
 function animate() {
     requestAnimationFrame(animate);
 
-    // Modify your auto-rotation check in the animate function
-    if (!isAutoRotating && autoRotateEnabled && Date.now() - lastInteraction > AUTO_ROTATION_DELAY) {
+    // Only allow auto-rotate to resume if mouse is not down
+    if (!isAutoRotating && autoRotateEnabled && !isMouseDown && Date.now() - lastInteraction > AUTO_ROTATION_DELAY) {
         isAutoRotating = true;
     }      // Apply auto-rotation if active
     if (isAutoRotating) {
@@ -409,13 +446,29 @@ function animate() {
 
     topMat.uniforms.customCameraPosition.value.copy(camera.position);
     controls.update();
+    renderer.setViewport(0, 0, innerWidth, innerHeight);
+    renderer.setScissorTest(false);
     renderer.render(scene, camera);
+
+    // --- Axes overlay ---
+    const axesSize = Math.min(innerWidth, innerHeight) * 0.15; // 15% of shortest side
+    renderer.clearDepth(); // Clear depth buffer for overlay
+    renderer.setScissorTest(true);
+    renderer.setViewport(innerWidth - axesSize - 16, 16, axesSize, axesSize); // 16px margin
+    renderer.setScissor(innerWidth - axesSize - 16, 16, axesSize, axesSize);
+    // Sync axes orientation to main camera (not camera quaternion)
+    axesHelper.quaternion.copy(camera.quaternion);
+    renderer.render(axesScene, axesCamera);
+    renderer.setScissorTest(false);
 }
 animate();
 
 // === Export Image Button Logic ===
 document.getElementById('exportImage').addEventListener('click', () => {
-    renderer.render(scene, camera); // Ensure latest frame
+    // Reset viewport and scissor to full canvas before export
+    renderer.setViewport(0, 0, renderer.domElement.width, renderer.domElement.height);
+    renderer.setScissorTest(false);
+    renderer.render(scene, camera);
     const dataURL = renderer.domElement.toDataURL('image/png');
     const link = document.createElement('a');
     link.href = dataURL;
@@ -424,3 +477,33 @@ document.getElementById('exportImage').addEventListener('click', () => {
     link.click();
     document.body.removeChild(link);
 });
+
+// === Film Thickness Slider Logic ===
+const thicknessSlider = document.getElementById('thicknessSlider');
+const thicknessNumber = document.getElementById('thicknessNumber');
+
+// Sync number input with slider
+thicknessSlider.addEventListener('input', (e) => {
+    thicknessNumber.value = e.target.value;
+    topMat.uniforms.filmThickness.value = parseFloat(e.target.value);
+});
+
+// Sync slider with number input
+thicknessNumber.addEventListener('input', (e) => {
+    let value = Math.min(Math.max(e.target.value, 5), 1000); // Min and max limits of thickness
+    thicknessSlider.value = value;
+    topMat.uniforms.filmThickness.value = parseFloat(value);
+});
+
+// === Film Thickness Reset Button Logic ===
+document.getElementById('resetThickness').addEventListener('click', () => {
+    thicknessSlider.value = 500;
+    thicknessNumber.value = 500;
+    topMat.uniforms.filmThickness.value = 500;
+});
+
+let isMouseDown = false;
+renderer.domElement.addEventListener('pointerdown', () => { isMouseDown = true; });
+window.addEventListener('pointerup', () => { isMouseDown = false; });
+window.addEventListener('pointercancel', () => { isMouseDown = false; });
+window.addEventListener('pointerleave', () => { isMouseDown = false; });
