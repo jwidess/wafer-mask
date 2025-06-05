@@ -117,14 +117,14 @@ const topMat = new THREE.ShaderMaterial({
 
         // Physical constants for SiO2 on Si
         const float n0 = 1.0;    // Air
-        const float n1 = 1.46;   // SiO2
+        const float n1 = 1.82;   // SiO2
         const float n2 = 3.88;   // Si (approx, for visible)
         const float k2 = 0.02;   // Si absorption (approx)
 
         // Wavelengths for RGB (in nm) - more accurate for sRGB
-        const float lambdaR = 630.0;
-        const float lambdaG = 525.0;
-        const float lambdaB = 500.0;
+        const float lambdaR = 680.0;
+        const float lambdaG = 550.0;
+        const float lambdaB = 480.0;
 
         // Calculate reflectance for a single wavelength
         float thinFilmReflectance(float lambda, float cosTheta0) {
@@ -151,7 +151,7 @@ const topMat = new THREE.ShaderMaterial({
             vec3 viewDir = normalize(vViewDir);
             float cosTheta0_raw = abs(dot(normal, viewDir));
             // Blend toward normal incidence to reduce angle sensitivity
-            float blend = 0.995; // Further increased for more normal-incidence weighting
+            float blend = 0.98;
             float cosTheta0 = mix(cosTheta0_raw, 1.0, blend);
 
             // Thin film reflectance for RGB
@@ -159,8 +159,15 @@ const topMat = new THREE.ShaderMaterial({
             float g = thinFilmReflectance(lambdaG, cosTheta0);
             float b = thinFilmReflectance(lambdaB, cosTheta0);
             vec3 filmColor = vec3(r, g, b);
-            // Increase minimum reflectance floor to prevent black at normal incidence
-            filmColor = max(filmColor, vec3(0.12, 0.12, 0.12));
+            // Lower minimum reflectance floor for more vivid color
+            filmColor = max(filmColor, vec3(0.05, 0.05, 0.05));
+            // Strong vibrancy: fully normalize and apply strong gamma
+            float maxChannel = max(max(filmColor.r, filmColor.g), filmColor.b);
+            if (maxChannel > 0.0) {
+                filmColor /= maxChannel; // Fully normalize to 1.0
+                filmColor = pow(filmColor, vec3(1.4)); // Stronger gamma for vibrancy
+            }
+            filmColor = clamp(filmColor, 0.0, 1.0); // Clamp to valid range
 
             // --- Mirror-like environment reflection ---
             vec3 reflectDir = reflect(-viewDir, normal);
