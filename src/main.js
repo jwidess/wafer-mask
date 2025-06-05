@@ -88,19 +88,15 @@ maskTex.flipY = false;
 maskTex.wrapS = maskTex.wrapT = THREE.ClampToEdgeWrapping;
 maskTex.minFilter = THREE.LinearMipmapLinearFilter;
 maskTex.magFilter = THREE.LinearFilter;
-maskTex.anisotropy = renderer.capabilities.getMaxAnisotropy();    // === TextureLoader ===
+maskTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
 const loader = new THREE.TextureLoader();
-const silverTex = loader.load('./textures/silver-texture-square.jpg');
-silverTex.wrapS = silverTex.wrapT = THREE.RepeatWrapping;
-silverTex.repeat.set(1, 1);
 
 // Replace the entire ShaderMaterial definition
 const topMat = new THREE.ShaderMaterial({
     uniforms: {
         maskMap: { value: maskTex },
-        silverMap: { value: silverTex },
         customCameraPosition: { value: new THREE.Vector3() },
-        filmThickness: { value: 500.0 }, // nm, typical SiO2 thickness
+        filmThickness: { value: 500.0 }, // nm, default SiO2 thickness
         envMap: { value: null } // will be set after EXR loads
     },
     vertexShader: `
@@ -121,7 +117,6 @@ const topMat = new THREE.ShaderMaterial({
         varying vec3 vViewDir;
         varying vec2 vUv;
         uniform sampler2D maskMap;
-        uniform sampler2D silverMap;
         uniform float filmThickness; // in nm
         uniform sampler2D envMap;
 
@@ -193,12 +188,16 @@ const topMat = new THREE.ShaderMaterial({
             // Reduce environment reflection blend at normal incidence
             vec3 reflectiveFilm = mix(filmColor, envColor, fresnel * 0.85);
 
-            // Sample mask and silver
+            // Sample mask
             float mask = texture2D(maskMap, vUv).r;
-            vec3 silverColor = texture2D(silverMap, vUv).rgb;
 
-            // Mix: masked = reflective film, unmasked = silver
-            vec3 finalColor = mix(silverColor, reflectiveFilm, mask);
+            // --- Dynamic silver mirror for unmasked region ---
+            vec3 silverColor = vec3(0.97, 0.96, 0.92); // Silver RGB
+            float silverFresnel = pow(1.0 - cosTheta0_raw, 5.0) * 0.7 + 0.3;
+            vec3 silverMirror = mix(silverColor, envColor, silverFresnel); // Blend silver color with env reflection
+
+            // Mix: masked = reflective film, unmasked = silver mirror
+            vec3 finalColor = mix(silverMirror, reflectiveFilm, mask);
             gl_FragColor = vec4(finalColor, 1.0);
         }
       `,
