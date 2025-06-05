@@ -416,8 +416,8 @@ axesCamera.lookAt(0, 0, 0);
 function animate() {
     requestAnimationFrame(animate);
 
-    // Modify your auto-rotation check in the animate function
-    if (!isAutoRotating && autoRotateEnabled && Date.now() - lastInteraction > AUTO_ROTATION_DELAY) {
+    // Only allow auto-rotate to resume if mouse is not down
+    if (!isAutoRotating && autoRotateEnabled && !isMouseDown && Date.now() - lastInteraction > AUTO_ROTATION_DELAY) {
         isAutoRotating = true;
     }      // Apply auto-rotation if active
     if (isAutoRotating) {
@@ -490,3 +490,9 @@ document.getElementById('resetThickness').addEventListener('click', () => {
     thicknessNumber.value = 500;
     topMat.uniforms.filmThickness.value = 500;
 });
+
+let isMouseDown = false;
+renderer.domElement.addEventListener('pointerdown', () => { isMouseDown = true; });
+window.addEventListener('pointerup', () => { isMouseDown = false; });
+window.addEventListener('pointercancel', () => { isMouseDown = false; });
+window.addEventListener('pointerleave', () => { isMouseDown = false; });
