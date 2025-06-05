@@ -10,4 +10,4 @@
 > \*GPT-4.1 & Claude 3.5 Sonnet were used heavily for the majority of the program as I am not familiar with Three.js and just wanted to make this as a fun mini-project! (P.S. Claude 3.5 Sonnet was far better at handling shaders)
 
 ## Example Image:
-![Example Image](https://github.com/jwidess/wafer-mask/blob/main/example.png?raw=true)
+![Example Image](https://github.com/jwidess/wafer-mask/blob/main/example.jpg?raw=true)
