@@ -40,7 +40,10 @@
         <label for="thicknessSlider" style="color: white; margin-bottom: 0.1rem;">Film Thickness (nm):</label>
         <div style="display: flex; width: 100%; align-items: center; gap: 0.5rem;">
           <input type="range" id="thicknessSlider" min="50" max="1000" step="1" value="500" />
-          <input type="number" id="thicknessNumber" min="50" max="1000" step="1" value="500" />
+          <span style="display: flex; align-items: center; gap: 0.2rem;">
+            <input type="number" id="thicknessNumber" min="50" max="1000" step="1" value="500" style="width: 3.5rem;" />
+            <span style="color: #fff; font-size: 0.95em;">nm</span>
+          </span>
         </div>
       </div>
 
