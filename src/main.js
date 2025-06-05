@@ -81,7 +81,7 @@ uv.needsUpdate = true;
 const SIZE = 2048;
 const maskCanvas = document.createElement('canvas');
 maskCanvas.width = maskCanvas.height = SIZE;
-const mctx = maskCanvas.getContext('2d');
+const mctx = maskCanvas.getContext('2d', { willReadFrequently: true });
 
 const maskTex = new THREE.CanvasTexture(maskCanvas);
 maskTex.flipY = false;
@@ -335,11 +335,30 @@ window.addEventListener('load', () => {
     img.src = defaultImagePath; // Load the default image
 });
 
+// Debounce utility
+function debounce(fn, delay) {
+    let timer = null;
+    return function(...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
+// Debounced processImage for scale slider
+const debouncedProcessImage = debounce(() => {
+    if (currentImage) processImage(currentImage);
+}, 20); // Debounce delay
+
 // Update the scale slider logic
-document.getElementById('scaleSlider').addEventListener('input', () => {
-    if (currentImage) {
-        processImage(currentImage); // Reprocess the current image with the new scale
-    }
+document.getElementById('scaleSlider').addEventListener('input', (e) => {
+    document.getElementById('scaleNumber').value = e.target.value;
+    debouncedProcessImage();
+});
+
+document.getElementById('scaleNumber').addEventListener('input', (e) => {
+    const value = Math.min(Math.max(e.target.value, 0.1), 3);
+    document.getElementById('scaleSlider').value = value;
+    debouncedProcessImage();
 });
 
 // === Image Input & Mask Processing ===
@@ -379,18 +398,14 @@ scene.add(pointLight);
 // Sync the number input with the slider
 document.getElementById('scaleSlider').addEventListener('input', (e) => {
     document.getElementById('scaleNumber').value = e.target.value;
-    if (currentImage) {
-        processImage(currentImage);
-    }
+    debouncedProcessImage();
 });
 
 // Sync the slider with the number input
 document.getElementById('scaleNumber').addEventListener('input', (e) => {
     const value = Math.min(Math.max(e.target.value, 0.1), 3);
     document.getElementById('scaleSlider').value = value;
-    if (currentImage) {
-        processImage(currentImage);
-    }
+    debouncedProcessImage();
 });
 
 const CENTER = new THREE.Vector3(0, 0, 0);
