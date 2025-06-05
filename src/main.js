@@ -43,9 +43,8 @@ controls.update();
 
 let lastInteraction = Date.now();
 let isAutoRotating = true;
-const AUTO_ROTATION_DELAY = 3000; // 3 seconds
+const AUTO_ROTATION_DELAY = 3000;
 
-// Add these event listeners after the controls setup
 controls.addEventListener('start', () => {
     isAutoRotating = false;
     lastInteraction = Date.now();
@@ -63,7 +62,7 @@ window.addEventListener('resize', () => {
 
 // === Wafer Geometry ===
 const RADIUS = 2;
-const THICK = 0.02;
+const THICK = 0.01;
 const topGeo = new THREE.CircleGeometry(RADIUS, 256);
 const bottomGeo = new THREE.CircleGeometry(RADIUS, 256);
 const sideGeo = new THREE.CylinderGeometry(RADIUS, RADIUS, THICK, 256, 1, true);
@@ -121,12 +120,12 @@ const topMat = new THREE.ShaderMaterial({
         uniform sampler2D envMap;
 
         // Physical constants for SiO2 on Si
-        const float n0 = 1.0;    // Air
-        const float n1 = 1.82;   // SiO2
+        const float n0 = 1.0;    // Air - Refractive Index
+        const float n1 = 1.82;   // SiO2 - Refractive Index
         const float n2 = 3.88;   // Si (approx, for visible)
         const float k2 = 0.02;   // Si absorption (approx)
 
-        // Wavelengths for RGB (in nm) - more accurate for sRGB
+        // Wavelengths for RGB (in nm)
         const float lambdaR = 680.0;
         const float lambdaG = 550.0;
         const float lambdaB = 480.0;
@@ -232,8 +231,6 @@ const wafer = new THREE.Group();
 wafer.add(top, bottom, side);
 scene.add(wafer);
 
-//scene.add(new THREE.AxesHelper(2));
-
 // === Preview Canvas ===
 const dctx = document.getElementById('preview').getContext('2d');
 
@@ -288,7 +285,7 @@ function processImage(img) {
     const id = mctx.getImageData(0, 0, SIZE, SIZE);
     const invert = document.getElementById('invertMask').checked; // Check if the mask should be inverted
 
-    const greyLevels = 16; // Number of grey levels (can be adjusted)
+    const greyLevels = 16; // Number of grey levels
     const stepSize = 256 / greyLevels;
 
     for (let i = 0; i < id.data.length; i += 4) {
@@ -338,7 +335,7 @@ window.addEventListener('load', () => {
 // Debounce utility
 function debounce(fn, delay) {
     let timer = null;
-    return function(...args) {
+    return function (...args) {
         clearTimeout(timer);
         timer = setTimeout(() => fn.apply(this, args), delay);
     };
@@ -381,20 +378,6 @@ document.getElementById('imgInput').addEventListener('click', () => {
     document.getElementById('helperText').classList.remove('hidden');
 });
 
-// Add ambient light for general illumination
-const ambientLight = new THREE.AmbientLight(0xffffff, 1); // Soft white light
-scene.add(ambientLight);
-
-// Add directional light for highlights
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-directionalLight.position.set(5, 5, 5);
-scene.add(directionalLight);
-
-// Add a point light for better illumination
-const pointLight = new THREE.PointLight(0xffffff, 1, 10); // White light, intensity 1, range 10
-pointLight.position.set(0, 2, 2); // Position above the wafer
-scene.add(pointLight);
-
 // Sync the number input with the slider
 document.getElementById('scaleSlider').addEventListener('input', (e) => {
     document.getElementById('scaleNumber').value = e.target.value;
@@ -408,7 +391,7 @@ document.getElementById('scaleNumber').addEventListener('input', (e) => {
     debouncedProcessImage();
 });
 
-const CENTER = new THREE.Vector3(0, 0, 0);
+const CENTER = new THREE.Vector3(0, 0, 0); // Center point for auto-rotation
 
 const toggleBtn = document.getElementById('toggleRotation');
 let autoRotateEnabled = true; // Start with auto-rotation enabled
