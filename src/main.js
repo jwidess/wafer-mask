@@ -172,11 +172,10 @@ const topMat = new THREE.ShaderMaterial({
             // --- Mirror-like environment reflection ---
             vec3 reflectDir = reflect(-viewDir, normal);
             reflectDir = normalize(reflectDir);
-            // Equirectangular mapping expects y-up, so swap y and z
-            vec3 dir = vec3(reflectDir.x, reflectDir.z, -reflectDir.y);
-            float theta = atan(dir.z, dir.x);
-            float phi = acos(clamp(dir.y, -1.0, 1.0));
-            vec2 envUv = vec2((theta / 3.14159265 + 1.0) * 0.5, phi / 3.14159265);
+            // Standard equirectangular mapping for Three.js (y-up)
+            float theta = atan(reflectDir.z, reflectDir.x);
+            float phi = acos(clamp(reflectDir.y, -1.0, 1.0));
+            vec2 envUv = vec2(theta / (2.0 * 3.14159265) + 0.5, phi / 3.14159265);
             vec3 envColor = texture2D(envMap, envUv).rgb;
 
             // Fresnel for reflectivity
@@ -200,7 +199,7 @@ const topMat = new THREE.ShaderMaterial({
 const greyMaterial = new THREE.MeshStandardMaterial({
     color: 0x808080, // Grey color
     metalness: 0.5,  // Slight metallic look
-    roughness: 0.8,  // Matte finish
+    roughness: 0.5,  // Matte finish
     side: THREE.DoubleSide // Render both sides
 });
 
