@@ -2,15 +2,15 @@ import * as THREE from 'https://unpkg.com/three@0.126.1/build/three.module.js';
 import { OrbitControls } from 'https://unpkg.com/three@0.126.1/examples/jsm/controls/OrbitControls.js';
 import { EXRLoader } from 'https://unpkg.com/three@0.126.1/examples/jsm/loaders/EXRLoader.js';
 
-// === Scene Setup ===
-const scene = new THREE.Scene();
-
 // Show loading overlay
 const loadingOverlay = document.getElementById('loadingOverlay');
 if (loadingOverlay) loadingOverlay.style.display = '';
 let loadingTimeout = setTimeout(() => {
     if (loadingOverlay) loadingOverlay.classList.add('hidden');
 }, 10000); // Fallback: hide after 10s
+
+// === Scene Setup ===
+const scene = new THREE.Scene();
 
 // === Realistic Environment Map ===
 const exrLoader = new EXRLoader();
@@ -209,7 +209,7 @@ const topMat = new THREE.ShaderMaterial({
 const greyMaterial = new THREE.MeshStandardMaterial({
     color: 0x808080, // Grey color
     metalness: 0.5,  // Slight metallic look
-    roughness: 0.5,  // Matte finish
+    roughness: 0.8,  // Matte finish
     side: THREE.DoubleSide // Render both sides
 });
 
@@ -489,7 +489,7 @@ thicknessSlider.addEventListener('input', (e) => {
 
 // Sync slider with number input
 thicknessNumber.addEventListener('input', (e) => {
-    let value = Math.min(Math.max(e.target.value, 50), 1000);
+    let value = Math.min(Math.max(e.target.value, 5), 1000); // Min and max limits of thickness
     thicknessSlider.value = value;
     topMat.uniforms.filmThickness.value = parseFloat(value);
 });
