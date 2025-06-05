@@ -5,6 +5,13 @@ import { EXRLoader } from 'https://unpkg.com/three@0.126.1/examples/jsm/loaders/
 // === Scene Setup ===
 const scene = new THREE.Scene();
 
+// Show loading overlay
+const loadingOverlay = document.getElementById('loadingOverlay');
+if (loadingOverlay) loadingOverlay.style.display = '';
+let loadingTimeout = setTimeout(() => {
+    if (loadingOverlay) loadingOverlay.classList.add('hidden');
+}, 10000); // Fallback: hide after 10s
+
 // === Realistic Environment Map ===
 const exrLoader = new EXRLoader();
 exrLoader.load('./textures/env/studio_small_08_4k.exr', function (texture) {
@@ -12,6 +19,9 @@ exrLoader.load('./textures/env/studio_small_08_4k.exr', function (texture) {
     scene.background = texture;
     scene.environment = texture;
     topMat.uniforms.envMap.value = texture;
+    // Hide loading overlay when done
+    if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    clearTimeout(loadingTimeout);
 });
 
 // === Camera Setup ===
