@@ -171,6 +171,7 @@ const topMat = new THREE.ShaderMaterial({
             if (maxChannel > 0.0) {
                 filmColor /= maxChannel; // Fully normalize to 1.0
                 filmColor = pow(filmColor, vec3(1.4)); // Stronger gamma for vibrancy
+                filmColor *= 0.5; // Make masked areas darker
             }
             filmColor = clamp(filmColor, 0.0, 1.0); // Clamp to valid range
 
