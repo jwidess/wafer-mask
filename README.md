@@ -18,7 +18,7 @@
 
 The wafer's mask color is simulated using a custom GLSL shader that models thin film interference for a silicon wafer with a silicon dioxide (SiO₂) layer. These calculations are based on the following:
 
-- **Refractive Indices:**  
+- **Refractive Indices:** 
   - Air (n₀ = 1.0)  
   - SiO₂ (n₁ ≈ 1.82) (*Not accurate, but adjusted for color accuracy of reference wafer*)
   - Silicon (n₂ ≈ 3.88, k₂ ≈ 0.02 for absorption)
@@ -52,7 +52,7 @@ This project is a functional prototype, but several aspects could be improved fo
 
 - **Thin Film Physics:**  
   - Use wavelength-dependent refractive indices (dispersion) for SiO₂ and Si.
-  - Add support for multiple film layers or arbitrary stackups. (This would be awesome!)
+  - Add support for multiple film layers or arbitrary stackups. (This would be really awesome!)
   - Model polarization effects and absorption more accurately.
 
 - **Reflections:**  
@@ -77,4 +77,6 @@ Contributions and suggestions are welcome!
 ---
 
 ## Reference Wafer Vs. Simulation Comparison
+>On the right is my 4" silicon wafer with a 500nm coating of SiO₂. On the right is this programs rendering of the same coating thickness and image mask. Overall, its a pretty good recreation, but could still use some improvements. 
+
 ![Example Image](https://github.com/jwidess/wafer-mask/blob/main/comparison.jpg?raw=true)

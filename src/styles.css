@@ -223,6 +223,9 @@
             padding: 0.35rem 0.5rem;
             left: 210px;
             top: 0.5rem;
+            max-width: 140px; /* or adjust as needed */
+            white-space: normal;
+            overflow-wrap: break-word;
         }
     }
 
@@ -234,6 +237,7 @@
 
         .helper-text {
             left: 190px;
+            max-width: 110px; /* even narrower for very small screens */
         }
     }
 
