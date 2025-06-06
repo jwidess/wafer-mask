@@ -30,7 +30,7 @@ The wafer's mask color is simulated using a custom GLSL shader that models thin 
   - Blue: 480 nm
 
 - **Physics:**  
-  The reflectance is calculated using the Fresnel equations and phase difference due to the optical path in the thin film. The formula used is a simplified version for a single-layer thin film at a given angle of incidence and could be improved. (See [Areas for Improvement](#areas-for-improvement))
+  The reflectance is calculated using the Fresnel equations and phase difference due to the optical path in the thin film. The formula used is a simplified version for a single-layer thin film at a given angle of incidence and could be improved. (See [Thin Film Interference Physics](#thin-film-interference-physics) for more info)
 
 - **Angle Dependence:**  
   The shader blends the angle of incidence toward normal to reduce color shifting at glancing angles, which helps with visual realism, however this isn't perfect and or completely realistic. 
@@ -73,6 +73,43 @@ This project is a functional prototype, but several aspects could be improved fo
   - Add support for 3D model export (e.g., GLTF).
 
 Contributions and suggestions are welcome!
+
+---
+
+## Thin Film Interference Physics
+
+The simulation uses a simplified physical model to approximate the color and reflectance. The main calculations in the GLSL shader are:
+
+- **Fresnel Equations:**  
+  The reflectance at each interface (air/SiO₂ and SiO₂/Si) is calculated for s-polarized light:
+  $$
+  r = \frac{n_1 \cos\theta_1 - n_2 \cos\theta_2}{n_1 \cos\theta_1 + n_2 \cos\theta_2}
+  $$
+
+- **Snell's Law:**  
+  Used to compute the angle of refraction in each layer:
+  $$
+  n_0 \sin\theta_0 = n_1 \sin\theta_1
+  $$
+
+- **Phase Difference:**  
+  The phase shift due to the optical path length in the film:
+  $$
+  \Delta = \frac{4\pi n_1 d \cos\theta_1}{\lambda}
+  $$
+
+- **Thin Film Reflectance:**  
+  The total reflectance for a single wavelength:
+  $$
+  R = \frac{r_{01}^2 + r_{12}^2 + 2 r_{01} r_{12} \cos\Delta}{1 + r_{01}^2 r_{12}^2 + 2 r_{01} r_{12} \cos\Delta}
+  $$
+  where:
+  - $r_{01}$ is the Fresnel reflection coefficient between air and SiO₂
+  - $r_{12}$ is the Fresnel reflection coefficient between SiO₂ and Si
+  - $\Delta$ is the phase difference accumulated in the film
+  - $R$ is the total reflectance for that wavelength
+
+This is computed for three wavelengths (R, G, B) to produce the final color. The shader also blends the angle of incidence toward normal and uses a Fresnel term to mix the thin film color with an environment map for realistic reflections.
 
 ---
 
