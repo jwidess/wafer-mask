@@ -82,27 +82,24 @@ The simulation uses a simplified physical model to approximate the color and ref
 
 - **Fresnel Equations:**  
   The reflectance at each interface (air/SiO₂ and SiO₂/Si) is calculated for s-polarized light:
-  $$
-  r = \frac{n_1 \cos\theta_1 - n_2 \cos\theta_2}{n_1 \cos\theta_1 + n_2 \cos\theta_2}
-  $$
+
+  $$r = \frac{n_1 \cos\theta_1 - n_2 \cos\theta_2}{n_1 \cos\theta_1 + n_2 \cos\theta_2}$$
 
 - **Snell's Law:**  
   Used to compute the angle of refraction in each layer:
-  $$
-  n_0 \sin\theta_0 = n_1 \sin\theta_1
-  $$
+
+  $$n_0 \sin\theta_0 = n_1 \sin\theta_1$$
 
 - **Phase Difference:**  
   The phase shift due to the optical path length in the film:
-  $$
-  \Delta = \frac{4\pi n_1 d \cos\theta_1}{\lambda}
-  $$
+
+  $$\Delta = \frac{4\pi n_1 d \cos\theta_1}{\lambda}$$
 
 - **Thin Film Reflectance:**  
   The total reflectance for a single wavelength:
-  $$
-  R = \frac{r_{01}^2 + r_{12}^2 + 2 r_{01} r_{12} \cos\Delta}{1 + r_{01}^2 r_{12}^2 + 2 r_{01} r_{12} \cos\Delta}
-  $$
+  
+  $$R = \frac{r_{01}^2 + r_{12}^2 + 2 r_{01} r_{12} \cos\Delta}{1 + r_{01}^2 r_{12}^2 + 2 r_{01} r_{12} \cos\Delta}$$
+  
   where:
   - $r_{01}$ is the Fresnel reflection coefficient between air and SiO₂
   - $r_{12}$ is the Fresnel reflection coefficient between SiO₂ and Si
