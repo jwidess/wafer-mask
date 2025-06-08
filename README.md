@@ -2,7 +2,7 @@
 
 **This is a simple 3D viewer for simulating a silicon wafer with an SiO₂ image mask applied. The program uses OpenGL via [Three.js](https://threejs.org/)**  
 
-\*I created this program to assist myself and other students in a nanomanufacturing course. Our first assignment involved designing and manufacturing an "art" wafer to teach us the basic steps of spin coating, baking, photolithography, developing, isotropic [BOE](https://en.wikipedia.org/wiki/Buffered_oxide_etch), and finally inspection. I wanted a way to simulate what different images may look like masked on to a wafer, and thus sparked the inspiration to create this program!
+\*I created this program to assist myself and other students in a nanomanufacturing course. Our first assignment involved designing and manufacturing an "art" wafer to teach us the basic steps of spin coating, baking, photolithography, developing, anisotropic [BOE](https://en.wikipedia.org/wiki/Buffered_oxide_etch), and finally inspection. I wanted a way to simulate what different images may look like masked on to a wafer, and thus sparked the inspiration to create this program!
 
 > [!Note]
 > View the program here: [https://jwidess.github.io/wafer-mask/src/wafer.html](https://jwidess.github.io/wafer-mask/src/wafer.html)
