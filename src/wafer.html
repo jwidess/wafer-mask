@@ -9,8 +9,8 @@
   <link rel="icon" href="favicon.png" type="image/x-icon">
 </head>
 
-<body>
-  <a href="https://github.com/jwidess/wafer-mask" class="home-button btn">Home</a>
+<body>  <a href="https://github.com/jwidess/wafer-mask" class="home-button btn">Home</a>
+  <button id="helpButton" class="help-button btn">Help</button>
   <div id="helperText" class="helper-text">&#8592; Choose an image to begin!</div>
 
   <div class="control-panel">
@@ -61,6 +61,26 @@
   <div id="loadingOverlay">
     <div class="spinner"></div>
     <div class="loading-text">Loading environment and assets...</div>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <button class="modal-close" id="closeHelpModal" title="Close">&times;</button>
+      <h2>Wafer Art Mask Viewer - Help</h2>
+      <p><strong>What is this?</strong><br>
+      This tool lets you preview how a mask image would look as an SiO2 thin film on a silicon wafer, simulating real-world optical effects.</p>
+      <ul>
+        <li><strong>Choose File</strong> (JPG/PNG) to use as a mask. The black areas are masked and will retain their SiO2 coating, white is clear/unmasked (silver). Greyscale is supported.</li>
+        <li><strong>Scale</strong> the image to fit the wafer using the slider or number box.</li>
+        <li><strong>Invert Mask</strong> to swap masked/unmasked regions.</li>
+        <li><strong>Adjust SiO<sub>2</sub> Thickness</strong> to see color changes due to thin-film interference.</li>
+        <li><strong>Auto-Rotate</strong> can be toggled for easier viewing.</li>
+        <li><strong>Export Image</strong> saves a PNG of the current view.</li>
+        <li>Use the <strong>mini axes</strong> in the bottom right corner to orient yourself.</li>
+      </ul>
+      <p>For more details, see the <a href="https://github.com/jwidess/wafer-mask" target="_blank" rel="noopener">project README</a>.</p>
+    </div>
   </div>
 
   <script type="module" src="main.js"></script>

@@ -507,3 +507,18 @@ renderer.domElement.addEventListener('pointerdown', () => { isMouseDown = true; 
 window.addEventListener('pointerup', () => { isMouseDown = false; });
 window.addEventListener('pointercancel', () => { isMouseDown = false; });
 window.addEventListener('pointerleave', () => { isMouseDown = false; });
+
+// === Help Modal Logic ===
+const helpButton = document.getElementById('helpButton');
+const helpModal = document.getElementById('helpModal');
+const closeHelpModal = document.getElementById('closeHelpModal');
+
+helpButton.addEventListener('click', () => {
+    helpModal.classList.remove('hidden');
+});
+closeHelpModal.addEventListener('click', () => {
+    helpModal.classList.add('hidden');
+});
+helpModal.addEventListener('click', (e) => {
+    if (e.target === helpModal) helpModal.classList.add('hidden');
+});

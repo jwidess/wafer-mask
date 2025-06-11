@@ -98,6 +98,17 @@
         padding: 0.5rem 1rem;
     }
 
+    /* Help button */
+    .help-button {
+        position: fixed;
+        top: 3.5rem;
+        right: 0.75rem;
+        z-index: 10;
+        width: auto !important;
+        min-width: 80px;
+        padding: 0.5rem 1rem;
+    }
+
     /* Helper text */
     .helper-text {
         position: fixed;
@@ -218,6 +229,13 @@
             font-size: 0.9rem;
         }
 
+        .help-button {
+            top: 4rem;
+            right: 0.5rem;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.9rem;
+        }
+
         .helper-text {
             font-size: 0.85rem;
             padding: 0.35rem 0.5rem;
@@ -283,4 +301,68 @@
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
+    }
+
+    /* Modal overlay for Help popup */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(20, 20, 20, 0.85);
+      z-index: 20000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.3s;
+    }
+    .modal-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .modal-content {
+      background: #222;
+      color: #fff;
+      border-radius: 1rem;
+      padding: 2rem 1.5rem 1.5rem 1.5rem;
+      max-width: 420px;
+      width: 90vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      position: relative;
+      font-size: 1.05rem;
+    }
+    .modal-content h2 {
+      margin-top: 0;
+      margin-bottom: 0.7rem;
+      font-size: 1.3rem;
+      color: #7ecfff;
+    }
+    .modal-content ul {
+      margin: 0.7em 0 0.7em 1.2em;
+      padding: 0;
+      font-size: 1em;
+    }
+    .modal-content li {
+      margin-bottom: 0.4em;
+    }
+    .modal-close {
+      position: absolute;
+      top: 0.7rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 2rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+      z-index: 1;
+      transition: color 0.2s;
+    }
+    .modal-close:hover {
+      color: #ffb3b3;
+    }
+    @media (max-width: 600px) {
+      .modal-content {
+        padding: 1.1rem 0.5rem 0.7rem 0.5rem;
+        font-size: 0.98rem;
+      }
     }
