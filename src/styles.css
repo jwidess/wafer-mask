@@ -101,12 +101,16 @@
     /* Help button */
     .help-button {
         position: fixed;
-        top: 3.5rem;
-        right: 0.75rem;
+        bottom: 0.75rem;
+        left: 0.75rem;
+        right: auto;
+        top: auto;
         z-index: 10;
         width: auto !important;
-        min-width: 80px;
-        padding: 0.5rem 1rem;
+        min-width: 110px;
+        padding: 0.85rem 1.5rem;
+        font-size: 1.15rem;
+        font-weight: 600;
     }
 
     /* Helper text */
@@ -230,10 +234,13 @@
         }
 
         .help-button {
-            top: 4rem;
-            right: 0.5rem;
-            padding: 0.35rem 0.75rem;
-            font-size: 0.9rem;
+            bottom: 0.5rem;
+            left: 0.5rem;
+            right: auto;
+            top: auto;
+            padding: 0.55rem 1.1rem;
+            font-size: 1.02rem;
+            min-width: 90px;
         }
 
         .helper-text {
