@@ -71,7 +71,7 @@
       <p><strong>What is this?</strong><br>
       This tool lets you preview how a mask image would look as an SiO2 thin film on a silicon wafer, simulating real-world optical effects.</p>
       <ul>
-        <li><strong>Choose File</strong> (JPG/PNG) to use as a mask. The black areas are masked and will retain their SiO2 coating, white is clear/unmasked (silver). Greyscale is supported.</li>
+        <li><strong>Choose File</strong> (JPG/PNG) to use as a mask. The black areas are masked and will retain the SiO2 coating, white is clear/unmasked (silver)<strong>*</strong></li>
         <li><strong>Scale</strong> the image to fit the wafer using the slider or number box.</li>
         <li><strong>Invert Mask</strong> to swap masked/unmasked regions.</li>
         <li><strong>Adjust SiO<sub>2</sub> Thickness</strong> to see color changes due to thin-film interference.</li>
@@ -79,7 +79,8 @@
         <li><strong>Export Image</strong> saves a PNG of the current view.</li>
         <li>Use the <strong>mini axes</strong> in the bottom right corner to orient yourself.</li>
       </ul>
-      <p>For more details, see the <a href="https://github.com/jwidess/wafer-mask" target="_blank" rel="noopener">project README</a>.</p>
+      <p>For more details, see the <a href="https://github.com/jwidess/wafer-mask?tab=readme-ov-file#wafer-mask" target="_blank" rel="noopener">project README</a>.</p>
+      <p style="margin-top:0.5em; color:#aaa; font-size:0.97em;">* This behavior matches a <strong>positive photoresist</strong>, like the AZ1518 used in our program, where exposed (clear/white) regions are removed during development, leaving the unexposed (black) areas protected. If using a <strong>negative photoresist</strong>, the masking is inverted: exposed regions remain and unexposed areas are removed, so the mask image would need to be inverted for correct simulation.</p>
     </div>
   </div>
 
