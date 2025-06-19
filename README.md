@@ -7,7 +7,7 @@
 > [!Note]
 > View the program here: [https://jwidess.github.io/wafer-mask/src/wafer.html](https://jwidess.github.io/wafer-mask/src/wafer.html)
 
-> \*GPT-4.1 & Claude 3.5 Sonnet were used heavily for the majority of the GLSL shaders and Three.js as I am not familiar with either and just wanted to make this as a fun mini-project!
+> \*GPT-4.1 & Claude 3.5 Sonnet were used heavily for the majority of the GLSL shaders and Three.js as I am not familiar with either.
 
 ## Example Image:
 ![Example Image](https://github.com/jwidess/wafer-mask/blob/main/example.jpg?raw=true)
@@ -24,7 +24,7 @@ The wafer's mask color is simulated using a custom GLSL shader that models thin 
   - Silicon (n₂ ≈ 3.88, k₂ ≈ 0.02 for absorption)
 
 - **Wavelengths:**  
-  The shader computes reflectance for three wavelengths; And again these have been tuned for color accuracy of reference wafer.
+  The shader computes reflectance for three wavelengths, and again these have been tuned for color accuracy of reference wafer.
   - Red: 680 nm  
   - Green: 550 nm  
   - Blue: 480 nm
@@ -33,7 +33,7 @@ The wafer's mask color is simulated using a custom GLSL shader that models thin 
   The reflectance is calculated using the Fresnel equations and phase difference due to the optical path in the thin film. The formula used is a simplified version for a single-layer thin film at a given angle of incidence and could be improved. (See [Thin Film Interference Physics](#thin-film-interference-physics) for more info)
 
 - **Angle Dependence:**  
-  The shader blends the angle of incidence toward normal to reduce color shifting at glancing angles, which helps with visual realism, however this isn't perfect and or completely realistic. 
+  The shader blends the angle of incidence toward normal to reduce color shifting at glancing angles, which helps with visual realism; however, this isn't perfect and/or completely realistic. 
 
 - **Color Normalization:**  
   The resulting RGB reflectance is normalized and gamma-corrected for "vividness", then blended with an environment map for somewhat realistic reflections. (See [Areas for Improvement](#areas-for-improvement))
@@ -52,7 +52,7 @@ This project is a functional prototype, but several aspects could be improved fo
 
 - **Thin Film Physics:**  
   - Use wavelength-dependent refractive indices (dispersion) for SiO₂ and Si.
-  - Add support for multiple film layers or arbitrary stackups. (This would be really awesome!)
+  - Add support for multiple film layers or arbitrary stackups. (This would be awesome!)
   - Model polarization effects and absorption more accurately.
 
 - **Reflections:**  
@@ -111,6 +111,6 @@ This is computed for three wavelengths (R, G, B) to produce the final color. The
 ---
 
 ## Reference Wafer Vs. Simulation Comparison
->On the right is my 4" silicon wafer with a 500nm coating of SiO₂. On the right is this programs rendering of the same coating thickness and image mask. Overall, its a pretty good recreation, but could still use some improvements. 
+>On the left is my real 4" silicon wafer with a 500nm coating of SiO₂. On the right is this program's rendering of the same coating thickness and image mask. Overall, it's a pretty good recreation, but could still use some improvements. 
 
 ![Example Image](https://github.com/jwidess/wafer-mask/blob/main/comparison.jpg?raw=true)
