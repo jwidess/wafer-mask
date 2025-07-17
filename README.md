@@ -1,13 +1,13 @@
 ## wafer-mask
 
-**This is a simple 3D viewer for simulating a silicon wafer with an SiO₂ image mask applied. The program uses OpenGL via [Three.js](https://threejs.org/)**  
+**This is a simple 3D visualizer for simulating a silicon wafer with an SiO₂ image mask applied. The program uses OpenGL via [Three.js](https://threejs.org/)**  
 
-\*I created this program to assist myself and other students in a nanomanufacturing course. Our first assignment involved designing and manufacturing an "art" wafer to teach us the basic steps of spin coating, baking, photolithography, developing, anisotropic [BOE](https://en.wikipedia.org/wiki/Buffered_oxide_etch), and finally inspection. I wanted a way to simulate what different images may look like masked on to a wafer, and thus sparked the inspiration to create this program!
+\*I created this program to help myself and other students in a nanomanufacturing course. Our first assignment involved designing and manufacturing an "art" wafer to teach us the basic steps of spin coating, baking, photolithography, developing, anisotropic [BOE](https://en.wikipedia.org/wiki/Buffered_oxide_etch), and finally inspection. I wanted a way to visualize what different images may look like masked on to a wafer, and thus sparked my inspiration to create this program!
 
 > [!Note]
 > View the program here: [https://jwidess.github.io/wafer-mask/src/wafer.html](https://jwidess.github.io/wafer-mask/src/wafer.html)
 
-> \*GPT-4.1 & Claude 3.5 Sonnet were used heavily for the majority of the GLSL shaders and Three.js as I am not familiar with either.
+> \*GPT-4.1 & Claude 3.5 Sonnet were used heavily for the majority of the GLSL shaders and Three.js as I was not very familiar with either.
 
 ## Example Image:
 ![Example Image](https://github.com/jwidess/wafer-mask/blob/main/example.jpg?raw=true)
@@ -48,12 +48,12 @@ The wafer's mask color is simulated using a custom GLSL shader that models thin 
 
 ## Areas for Improvement
 
-This project is a functional prototype, but several aspects could be improved for greater realism and usability:
+This project is functional, but several aspects could be improved for greater realism and usability:
 
 - **Thin Film Physics:**  
   - Use wavelength-dependent refractive indices (dispersion) for SiO₂ and Si.
   - Add support for multiple film layers or arbitrary stackups. (This would be awesome!)
-  - Model polarization effects and absorption more accurately.
+  - Model polarization effects and absorption more accurately, very rough as is.
 
 - **Reflections:**  
   - Improve environment mapping (e.g., use real measured wafer BRDFs).
@@ -69,8 +69,8 @@ This project is a functional prototype, but several aspects could be improved fo
   - Add undo/redo, drag-and-drop, and more intuitive controls.
 
 - **Export:**  
-  - Enable exporting the mask or wafer as high-resolution images.
-  - Add support for 3D model export (e.g., GLTF).
+  - Enable exporting the mask or wafer as high res images.
+  - Add support for 3D model export (e.g., GLTF, GLB, etc.).
 
 Contributions and suggestions are welcome!
 
