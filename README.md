@@ -10,7 +10,7 @@
 > \*GPT-4.1 & Claude 3.5 Sonnet were used heavily for the majority of the GLSL shaders and Three.js as I was not very familiar with either.
 
 ## Example Image:
-![Example Image](https://github.com/jwidess/wafer-mask/blob/main/example.jpg?raw=true)
+![Example Image](example.jpg)
 
 ---
 
@@ -48,7 +48,7 @@ The wafer's mask color is simulated using a custom GLSL shader that models thin 
 
 ## Areas for Improvement
 
-This project is functional, but several aspects could be improved for greater realism and usability:
+The project is functional, but several areas could be improved for greater realism and usability:
 
 - **Thin Film Physics:**  
   - Use wavelength-dependent refractive indices (dispersion) for SiO₂ and Si.
@@ -65,7 +65,7 @@ This project is functional, but several aspects could be improved for greater re
   - Support for vector masks or SVG input.
 
 - **Performance & UI:**  
-  - Optimize for lower-end devices and slow connections. EXR Environment is 14MB alone.
+  - Optimize for lower-end devices and slow connections. Current EXR Environment is 14MB alone.
   - Add undo/redo, drag-and-drop, and more intuitive controls.
 
 - **Export:**  
@@ -111,6 +111,6 @@ This is computed for three wavelengths (R, G, B) to produce the final color. The
 ---
 
 ## Reference Wafer Vs. Simulation Comparison
->On the left is my real 4" silicon wafer with a 500nm coating of SiO₂. On the right is this program's rendering of the same coating thickness and image mask. Overall, it's a pretty good recreation, but could still use some improvements. 
+>Left is my real 4" silicon wafer with a 500nm coating of SiO₂. Right is this program's rendering of the same coating thickness and image mask. Overall, it's a pretty good recreation, but could still use some improvements. 
 
-![Example Image](https://github.com/jwidess/wafer-mask/blob/main/comparison.jpg?raw=true)
+![Example Image](comparison.jpg)
