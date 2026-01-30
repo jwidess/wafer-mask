@@ -1,6 +1,6 @@
-import * as THREE from 'https://unpkg.com/three@0.126.1/build/three.module.js';
-import { OrbitControls } from 'https://unpkg.com/three@0.126.1/examples/jsm/controls/OrbitControls.js';
-import { EXRLoader } from 'https://unpkg.com/three@0.126.1/examples/jsm/loaders/EXRLoader.js';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 
 // Show loading overlay
 const loadingOverlay = document.getElementById('loadingOverlay');
