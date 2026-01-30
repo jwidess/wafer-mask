@@ -2,27 +2,55 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 
-// Show loading overlay
+// Show loading overlay and update status
 const loadingOverlay = document.getElementById('loadingOverlay');
+const loadingText = document.getElementById('loadingText');
 if (loadingOverlay) loadingOverlay.style.display = '';
 let loadingTimeout = setTimeout(() => {
     if (loadingOverlay) loadingOverlay.classList.add('hidden');
-}, 10000); // Fallback: hide after 10s
+    console.warn('Loading timeout! - Took longer than 60s, hiding overlay');
+}, 60000);
+
+function updateLoadingText(message) {
+    if (loadingText) loadingText.textContent = message;
+}
 
 // === Scene Setup ===
+updateLoadingText('Initializing scene...');
 const scene = new THREE.Scene();
 
 // === Realistic Environment Map ===
+updateLoadingText('Loading environment map (14MB)...');
 const exrLoader = new EXRLoader();
-exrLoader.load('./textures/env/studio_small_08_4k.exr', function (texture) {
-    texture.mapping = THREE.EquirectangularReflectionMapping;
-    scene.background = texture;
-    scene.environment = texture;
-    topMat.uniforms.envMap.value = texture;
-    // Hide loading overlay when done
-    if (loadingOverlay) loadingOverlay.classList.add('hidden');
-    clearTimeout(loadingTimeout);
-});
+exrLoader.load(
+    './textures/env/studio_small_08_4k.exr',
+    function (texture) {
+        // onLoad callback
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        scene.background = texture;
+        scene.environment = texture;
+        topMat.uniforms.envMap.value = texture;
+        // Hide loading overlay when done
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        clearTimeout(loadingTimeout);
+    },
+    function (xhr) {
+        // onProgress callback
+        if (xhr.lengthComputable) {
+            const percentComplete = (xhr.loaded / xhr.total) * 100;
+            updateLoadingText(`Loading environment map: ${Math.round(percentComplete)}%`);
+        } else {
+            // If size is unknown, show loaded amount
+            const loadedMB = (xhr.loaded / (1024 * 1024)).toFixed(1);
+            updateLoadingText(`Loading environment map: ${loadedMB}MB...`);
+        }
+    },
+    function (error) {
+        // onError callback
+        console.error('Error loading environment map:', error);
+        updateLoadingText('Error loading environment map');
+    }
+);
 
 // === Camera Setup ===
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
